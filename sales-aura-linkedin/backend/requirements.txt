@@ -1,0 +1,14 @@
+fastapi==0.109.0
+uvicorn==0.27.0
+sqlalchemy==2.0.25
+pydantic==2.5.3
+pydantic-settings==2.1.0
+python-dotenv==1.0.0
+openai==1.10.0
+requests==2.31.0
+beautifulsoup4==4.12.3
+selenium==4.17.2
+apscheduler==3.10.4
+python-multipart==0.0.6
+aiofiles==23.2.1
+jinja2==3.1.3

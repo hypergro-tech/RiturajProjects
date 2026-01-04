@@ -1,0 +1,35 @@
+version: '3.8'
+
+services:
+  sales-aura:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - RAPIDAPI_KEY=${RAPIDAPI_KEY}
+      - LINKEDIN_EMAIL=${LINKEDIN_EMAIL}
+      - LINKEDIN_PASSWORD=${LINKEDIN_PASSWORD}
+      - DATABASE_URL=postgresql://postgres:postgres@db:5432/sales_aura
+      - SEARCH_INTERVAL_HOURS=${SEARCH_INTERVAL_HOURS:-1}
+      - MAX_RESULTS_PER_SEARCH=${MAX_RESULTS_PER_SEARCH:-50}
+      - MIN_RELEVANCE_SCORE=${MIN_RELEVANCE_SCORE:-0.6}
+    depends_on:
+      - db
+    volumes:
+      - ./backend:/app/backend
+      - ./frontend:/app/frontend
+    restart: unless-stopped
+
+  db:
+    image: postgres:15-alpine
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=sales_aura
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+
+volumes:
+  postgres_data:

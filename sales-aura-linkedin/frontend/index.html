@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SALES AURA - LinkedIn Leads</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        .gradient-bg {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        .score-high { color: #10b981; }
+        .score-medium { color: #f59e0b; }
+        .score-low { color: #ef4444; }
+        .lead-card {
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .lead-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+        }
+    </style>
+</head>
+<body class="bg-gray-50">
+    <!-- Header -->
+    <header class="gradient-bg text-white shadow-lg">
+        <div class="container mx-auto px-6 py-6">
+            <div class="flex items-center justify-between">
+                <div>
+                    <h1 class="text-3xl font-bold">SALES AURA</h1>
+                    <p class="text-purple-100 mt-1">LinkedIn Lead Generation for Hypergro.ai</p>
+                </div>
+                <div class="text-right">
+                    <div class="text-sm text-purple-100">Scheduler Status</div>
+                    <div id="schedulerStatus" class="text-lg font-semibold">Loading...</div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="container mx-auto px-6 py-8">
+        <!-- Stats Cards -->
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+            <div class="bg-white rounded-lg shadow p-6">
+                <div class="text-gray-500 text-sm font-medium">Total Leads</div>
+                <div id="totalLeads" class="text-3xl font-bold text-gray-800 mt-2">-</div>
+            </div>
+            <div class="bg-white rounded-lg shadow p-6">
+                <div class="text-gray-500 text-sm font-medium">Last 24 Hours</div>
+                <div id="recentLeads" class="text-3xl font-bold text-blue-600 mt-2">-</div>
+            </div>
+            <div class="bg-white rounded-lg shadow p-6">
+                <div class="text-gray-500 text-sm font-medium">Avg. Score</div>
+                <div id="avgScore" class="text-3xl font-bold text-green-600 mt-2">-</div>
+            </div>
+            <div class="bg-white rounded-lg shadow p-6">
+                <div class="text-gray-500 text-sm font-medium">Active Searches</div>
+                <div id="activeSearches" class="text-3xl font-bold text-purple-600 mt-2">-</div>
+            </div>
+        </div>
+
+        <!-- Filters and Actions -->
+        <div class="bg-white rounded-lg shadow p-6 mb-8">
+            <div class="flex items-center justify-between mb-4">
+                <h2 class="text-xl font-bold text-gray-800">Filters</h2>
+                <button onclick="resetFilters()" class="text-sm text-purple-600 hover:text-purple-800">
+                    <i class="fas fa-redo mr-1"></i> Reset
+                </button>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <!-- Relevance Score Filter -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">
+                        Relevance Score (Min)
+                    </label>
+                    <input type="range" id="minScore" min="0" max="1" step="0.1" value="0.6"
+                           class="w-full" onchange="updateFilters()">
+                    <div class="text-sm text-gray-600 mt-1">
+                        <span id="minScoreValue">0.6</span>+
+                    </div>
+                </div>
+
+                <!-- Date Range Filter -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">
+                        Start Date
+                    </label>
+                    <input type="date" id="startDate"
+                           class="w-full border border-gray-300 rounded-lg px-3 py-2"
+                           onchange="updateFilters()">
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">
+                        End Date
+                    </label>
+                    <input type="date" id="endDate"
+                           class="w-full border border-gray-300 rounded-lg px-3 py-2"
+                           onchange="updateFilters()">
+                </div>
+
+                <!-- ICP Filter -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">
+                        ICP Match
+                    </label>
+                    <select id="icpFilter"
+                            class="w-full border border-gray-300 rounded-lg px-3 py-2"
+                            onchange="updateFilters()">
+                        <option value="">All</option>
+                        <option value="SMB">SMB</option>
+                        <option value="Enterprise">Enterprise</option>
+                        <option value="Unknown">Unknown</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="mt-6 flex gap-4">
+                <button onclick="showAddSearchModal()"
+                        class="bg-purple-600 hover:bg-purple-700 text-white px-6 py-2 rounded-lg font-medium">
+                    <i class="fas fa-plus mr-2"></i> Add Search Query
+                </button>
+                <button onclick="triggerImmediateSearch()"
+                        class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-medium">
+                    <i class="fas fa-search mr-2"></i> Search Now
+                </button>
+            </div>
+        </div>
+
+        <!-- Leads List -->
+        <div class="bg-white rounded-lg shadow p-6">
+            <h2 class="text-xl font-bold text-gray-800 mb-4">
+                LinkedIn Leads
+                <span id="leadCount" class="text-sm font-normal text-gray-500 ml-2"></span>
+            </h2>
+
+            <div id="loadingIndicator" class="text-center py-8">
+                <i class="fas fa-spinner fa-spin text-4xl text-purple-600"></i>
+                <p class="text-gray-600 mt-4">Loading leads...</p>
+            </div>
+
+            <div id="leadsContainer" class="space-y-4 hidden"></div>
+
+            <div id="noLeadsMessage" class="text-center py-8 hidden">
+                <i class="fas fa-inbox text-4xl text-gray-300"></i>
+                <p class="text-gray-600 mt-4">No leads found matching your filters</p>
+            </div>
+        </div>
+    </main>
+
+    <!-- Add Search Query Modal -->
+    <div id="addSearchModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
+        <div class="bg-white rounded-lg shadow-xl p-8 max-w-md w-full mx-4">
+            <h3 class="text-2xl font-bold text-gray-800 mb-4">Add Search Query</h3>
+
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">
+                        Keyword
+                    </label>
+                    <input type="text" id="newKeyword" placeholder="e.g., marketing automation"
+                           class="w-full border border-gray-300 rounded-lg px-3 py-2">
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">
+                        Location
+                    </label>
+                    <input type="text" id="newLocation" placeholder="e.g., India"
+                           class="w-full border border-gray-300 rounded-lg px-3 py-2">
+                </div>
+            </div>
+
+            <div class="mt-6 flex gap-4">
+                <button onclick="createSearchQuery()"
+                        class="flex-1 bg-purple-600 hover:bg-purple-700 text-white px-6 py-2 rounded-lg font-medium">
+                    Create
+                </button>
+                <button onclick="hideAddSearchModal()"
+                        class="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-800 px-6 py-2 rounded-lg font-medium">
+                    Cancel
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>

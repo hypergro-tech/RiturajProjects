@@ -1,7 +1,7 @@
 export * from './types';
 export * from './constants';
 export { route } from './router';
-export { safeMargins, legalMin, weightLimit, formatBytes, DISPLAY_EDGE_PX } from './safeZones';
+export { safeMargins, legalMin, weightLimit, formatBytes, formatKb, DISPLAY_EDGE_PX } from './safeZones';
 export { normalizeModel, measureContrast, sampleBgColor, keepUnion, firstIllegible, deriveFontPx, relativeLuminance } from './model';
 export { planAdapt } from './plan';
 export { planRecompose, srcRect } from './recompose';

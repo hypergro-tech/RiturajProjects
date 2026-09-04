@@ -1,5 +1,6 @@
+import { formatKb } from '../pipeline/safeZones';
 import type { AdaptResult } from '../pipeline/types';
-import { AdaptPreview, formatKb, GateChip, StatusPill, StrategyBadge } from './ui';
+import { AdaptPreview, GateChip, StatusPill, StrategyBadge } from './ui';
 
 interface Props {
   results: AdaptResult[]; overlay: boolean;

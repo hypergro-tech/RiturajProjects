@@ -59,7 +59,3 @@ export function AdaptPreview({ r, scale, overlay, variant }: { r: AdaptResult; s
     </div>
   );
 }
-
-export function formatKb(kb: number): string {
-  return kb >= 1024 ? `${(kb / 1024).toFixed(1)}MB` : `${kb}KB`;
-}

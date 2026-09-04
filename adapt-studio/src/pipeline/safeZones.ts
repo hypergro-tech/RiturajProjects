@@ -29,3 +29,8 @@ export function formatBytes(bytes: number): string {
   const kb = Math.round(bytes / 1024);
   return kb >= 1024 ? `${(kb / 1024).toFixed(1)}MB` : `${kb}KB`;
 }
+
+/** Kilobyte count as shown on download buttons. */
+export function formatKb(kb: number): string {
+  return kb >= 1024 ? `${(kb / 1024).toFixed(1)}MB` : `${kb}KB`;
+}

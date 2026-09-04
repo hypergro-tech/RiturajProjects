@@ -1,0 +1,6 @@
+node_modules
+dist
+dist-server
+e2e/screenshots
+.env
+.git

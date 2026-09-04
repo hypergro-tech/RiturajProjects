@@ -1,0 +1,14 @@
+export * from './types';
+export * from './constants';
+export { route } from './router';
+export { safeMargins, legalMin, weightLimit, formatBytes, DISPLAY_EDGE_PX } from './safeZones';
+export { normalizeModel, measureContrast, sampleBgColor, keepUnion, firstIllegible, deriveFontPx, relativeLuminance } from './model';
+export { planAdapt } from './plan';
+export { planRecompose, srcRect } from './recompose';
+export { runGates, weightGate, mkGate, LOGO_MIN_HEIGHT_PX } from './gates';
+export { renderPlan } from './render';
+export { computeAdapt } from './adapt';
+export { rasterizeKeyVisual, makePreviewUrl, canvasSampler } from './ingest';
+export { visionPass } from './vision';
+export { demoModel, DEMO_ELEMENTS } from './demoData';
+export { drawDemoMaster, loadDemoImages, DEMO_ASSETS } from './demo';

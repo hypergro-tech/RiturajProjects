@@ -9,7 +9,7 @@ import { ARTIFACT_MODE, viewerRuntime } from '../pipeline/env';
 import { ensureFonts, fontAvailable } from '../pipeline/fonts';
 import { artboardThumbs, canvasSampler, makePreviewUrl, openKeyVisual, renderArtboard } from '../pipeline/ingest';
 import { analyzeLayout, describeLayout, mergeClassification } from '../pipeline/layout';
-import { deriveFontPx, isTextType, measureContrast, normalizeModel, sampleBgColor } from '../pipeline/model';
+import { deriveFontPx, isResettable, isTextType, measureContrast, normalizeModel, sampleBgColor } from '../pipeline/model';
 import { route } from '../pipeline/router';
 import { attachTextSpecs, type FontInfo } from '../pipeline/text';
 import { classifyViaText, textSamplingAvailable, visionPass } from '../pipeline/vision';
@@ -245,8 +245,8 @@ export function useStudio() {
     const results: AdaptResult[] = [];
     for (let i = 0; i < chosen.length; i++) {
       const upd = (p: Partial<GenRow>) => setState((s) => ({ ...s, genRows: s.genRows.map((g, j) => (j === i ? { ...g, ...p } : g)) }));
-      const rt = route(master.ratio, chosen[i].w, chosen[i].h);
-      upd({ pct: 20, phase: `Routing — Δ ${rt.delta.toFixed(2)}`, tone: 'secondary' });
+      const rt = route(master.ratio, chosen[i].w, chosen[i].h, isResettable(model));
+      upd({ pct: 20, phase: rt.reason ? `Routing — Δ ${rt.delta.toFixed(2)} · layout system` : `Routing — Δ ${rt.delta.toFixed(2)}`, tone: 'secondary' });
       await delay(120);
       let res: AdaptResult;
       try {

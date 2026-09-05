@@ -92,7 +92,7 @@ describe('heuristicModel() via analyzeLayout()', () => {
   it('classifies headline, body, CTA (on its pill) and legal from size, vocabulary and position', () => {
     expect(byType.headline?.text).toBe('Dreams don’t wait.\nNeither should you.');
     expect(byType.headline?.lines).toBe(2);
-    expect(byType.headline?.shortForm).toBe('Dreams don’t wait');
+    expect(byType.headline?.shortForm).toBe('Dreams don’t wait.');
     expect(byType.body?.text).toContain('Personal Loan');
     expect(byType.cta?.text).toBe('Apply now');
     expect(byType.legal?.text).toContain('T&C apply');
@@ -155,16 +155,34 @@ describe('deriveLayoutSystem()', () => {
     // body starts at 45% of the height, headline ends at 41%: 0.04 × 2000 px ÷ 103.7 px headline
     expect(sys.gapEm).toBeCloseTo((0.04 * 2000) / (56 * 2000 / 1080), 1);
     expect(sys.inset).toEqual({ x: 0.1, y: 0.105 });
+    // logo 0.068 tall vs a 56/1080 headline → 1.31 em; logo → headline gap (0.29 − 0.173) → 2.26 em
+    expect(sys.scale.logo).toBeCloseTo(0.068 / (56 / 1080), 1);
+    expect(sys.gaps.logo).toBeCloseTo((0.29 - 0.173) / (56 / 1080), 1);
+    expect(sys.gaps.headline).toBe(sys.gapEm);
+    // message block (0.29 → 0.617) floats a third of the way down the free space between logo and legal
+    expect(sys.blockPos).toBeCloseTo(0.33, 1);
+    // headline measure 0.62 of a 0.8 content width
+    expect(sys.textFrac).toBeCloseTo(0.62 / 0.8, 2);
+    // CTA pill: 0.062 × 1080 = 67px tall on a 27px face → 2.5 em; padding ≈ 1.2 em each side
+    expect(sys.pill.ratio).toBeCloseTo(2.48, 1);
+    expect(sys.pill.padEm).toBeGreaterThan(0.9);
+    expect(sys.pill.padEm).toBeLessThan(1.6);
+    expect(sys.visualPos).toBe('none');
+  });
+  it('reads where the visual sits relative to the headline', () => {
+    const model = demoModel(2000, '#004bbe');
+    const withVisual = { ...model, elements: [...model.elements, { ...model.elements[0], type: 'product' as const, box: { x: 0.75, y: 0.25, w: 0.2, h: 0.4 } }] };
+    expect(deriveLayoutSystem(withVisual, 2000, 2000).visualPos).toBe('right');
   });
   it('falls back to sensible defaults with no headline', () => {
     const sys = deriveLayoutSystem({ elements: [], background: { desc: '', extendable: true, extendDirections: [], complexity: 'simple', color: '#fff' }, regulated: true, detectedRegulated: false, notes: '' }, 1000, 1000);
-    expect(sys).toMatchObject({ align: 'left', gapEm: 0.6, logoCorner: 'tl', scale: { body: 0.42, cta: 0.45 } });
+    expect(sys).toMatchObject({ align: 'left', gapEm: 0.6, logoCorner: 'tl', scale: { body: 0.42, cta: 0.45, logo: 1 }, gaps: { logo: 1.2, headline: 0.6 }, blockPos: 0.35, textFrac: 0.8, pill: { ratio: 2.4, padEm: 1.1 }, visualPos: 'none' });
   });
 });
 
 describe('shortFormOf()', () => {
   it('uses the first short clause, else the first three words, else nothing', () => {
-    expect(shortFormOf('Dreams don’t wait. Neither should you.')).toBe('Dreams don’t wait');
+    expect(shortFormOf('Dreams don’t wait. Neither should you.')).toBe('Dreams don’t wait.');
     expect(shortFormOf('Personal loans approved in ten minutes flat')).toBe('Personal loans approved');
     expect(shortFormOf('Apply now')).toBe('');
   });

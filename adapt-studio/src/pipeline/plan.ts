@@ -1,4 +1,4 @@
-import { firstIllegible, illegibleNote, keepUnion } from './model';
+import { firstIllegible, illegibleNote, isResettable, keepUnion } from './model';
 import { planRecompose } from './recompose';
 import { route } from './router';
 import { legalMin, safeMargins } from './safeZones';
@@ -28,7 +28,7 @@ export function planAdapt(master: MasterInfo, input: ObjectModel, target: Target
   const social = !!target.social;
   const model = withLegalFloor(input, W, social);
   const { rw, rh, ratio: Rm } = master;
-  const routed = route(Rm, W, H);
+  const routed = route(Rm, W, H, isResettable(model));
   const m = safeMargins(W, H, social);
   const escalations: string[] = [];
   let strat: Strategy = routed.strategy;
@@ -61,11 +61,20 @@ export function planAdapt(master: MasterInfo, input: ObjectModel, target: Target
       const winW = Rt >= Rm ? rw : Math.round(rh * Rt);
       const winH = Rt >= Rm ? Math.round(rw / Rt) : rh;
       const sc = W / winW;
-      const U = keepUnion(model, rw, rh);
       const lM = m.l * winW, rM = m.r * winW, tM = m.t * winH, bM = m.b * winH;
-      const fits = U.x1 - U.x0 <= winW - lM - rM && U.y1 - U.y0 <= winH - tM - bM;
-      const loX = Math.max(U.x1 - (winW - rM), 0), hiX = Math.min(U.x0 - lM, rw - winW);
-      const loY = Math.max(U.y1 - (winH - bM), 0), hiY = Math.min(U.y0 - tM, rh - winH);
+      // Prefer a window that keeps every text element (droppable copy included) inside the safe zone — copy
+      // that survives a crop must not hug the edge — and fall back to the protected union alone.
+      const withText: ObjectModel = { ...model, elements: model.elements.map((e) => (e.fontPx > 0 ? { ...e, mustKeep: true } : e)) };
+      let U = keepUnion(withText, rw, rh);
+      let fits = U.x1 - U.x0 <= winW - lM - rM && U.y1 - U.y0 <= winH - tM - bM;
+      let loX = Math.max(U.x1 - (winW - rM), 0), hiX = Math.min(U.x0 - lM, rw - winW);
+      let loY = Math.max(U.y1 - (winH - bM), 0), hiY = Math.min(U.y0 - tM, rh - winH);
+      if (!fits || loX > hiX + 0.5 || loY > hiY + 0.5) {
+        U = keepUnion(model, rw, rh);
+        fits = U.x1 - U.x0 <= winW - lM - rM && U.y1 - U.y0 <= winH - tM - bM;
+        loX = Math.max(U.x1 - (winW - rM), 0); hiX = Math.min(U.x0 - lM, rw - winW);
+        loY = Math.max(U.y1 - (winH - bM), 0); hiY = Math.min(U.y0 - tM, rh - winH);
+      }
       if (!fits || loX > hiX + 0.5 || loY > hiY + 0.5) {
         escalations.push('Smart crop: protected elements exceed the target safe zone');
         strat = 'EXPAND';

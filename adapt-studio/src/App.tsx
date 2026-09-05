@@ -28,7 +28,7 @@ export default function App() {
       )}
       {state.stage === 'sizes' && state.master && (
         <SizesScreen
-          masterRatio={state.master.ratio} sizes={allSizes} isSelected={isSelected} selectedCount={selectedCount}
+          masterRatio={state.master.ratio} model={state.model} sizes={allSizes} isSelected={isSelected} selectedCount={selectedCount}
           onToggle={actions.toggleSize} onAddCustom={actions.addCustomSize} onGenerate={() => void actions.generate()}
         />
       )}

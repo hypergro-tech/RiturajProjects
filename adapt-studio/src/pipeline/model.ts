@@ -127,6 +127,16 @@ export function measureContrast(model: ObjectModel, sample: PixelSampler, rw: nu
   return { ...model, elements };
 }
 
+/**
+ * A master is fully re-settable when every element can be reproduced from the object model alone: text that
+ * carries a TextSpec, a logo patch, and a flat / gradient background. Nothing is lost by rebuilding it.
+ */
+export function isResettable(model: ObjectModel): boolean {
+  if (model.background.complexity !== 'simple') return false;
+  if (!model.elements.some((e) => e.type === 'headline' && e.text)) return false;
+  return model.elements.every((e) => (isTextType(e.type) ? !!e.text : e.type === 'logo'));
+}
+
 export interface Union { x0: number; y0: number; x1: number; y1: number }
 
 /** Union box of all mustKeep elements in master-raster px (the whole raster when there are none). */

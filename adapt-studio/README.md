@@ -71,7 +71,7 @@ src/pipeline/          pure functions over (master, model, target) — DOM only 
   model.ts             Stage 1 calibration: normalizeModel(), deriveFontPx(), measureContrast(), sampleBgColor(), keepUnion()
   text.ts              text specs: PDF runs → elements, colour sampling, font resolution (embedded → web → brand)
   plan.ts              Stage 3 planner: SCALE → SMART_CROP → EXPAND → RECOMPOSE → BLOCK escalation, geometry only
-  recompose.ts         Stage 3 RECOMPOSE: wrap / fit / short-form text engine + strip / vertical / compact templates
+  recompose.ts         Stage 3 RECOMPOSE: the layout engine — type-scale solve, balanced wrapping, stack + strip templates
   gates.ts             Stage 6 automated gates (+ brand-book 20 px logo floor)
   render.ts            draws a plan (patches, pills, text) onto a canvas — the only pixel-touching module
   adapt.ts             per-size orchestrator: plan → render → encode (PNG, JPEG fallback) → gates → status
@@ -100,10 +100,18 @@ safe-zone gate checks.
    screen shows which one was used for every element.
 3. **Colour** — text and background colours are sampled from the raster (median luminance = background, the contrasting
    extreme = text). A CTA whose box differs from the page colour is rebuilt as a pill.
-4. **Layout** — each template reserves the legal line at its floor first (14 px display, 18 px-equivalent social; if it
-   cannot fit, the size is blocked for compliance), then the CTA, then fits the headline as large as its area allows
-   (short-form when the full line will not fit), then body copy if room remains, then keeps the product / decorative
-   visual only in leftover space. Anything dropped is named on the card.
+4. **Layout** — a rebuild is a layout-system problem, not an image-resize problem. `deriveLayoutSystem()` reads the
+   master's own system off its elements: text alignment, the type scale (body / CTA / legal / logo as ratios of the
+   headline), the gap after each block, where the message block floats between logo and legal, the width of the text
+   column, and the CTA pill's proportions. The engine then solves **one** variable — the headline size — so the whole
+   stack fills the target: every other size follows the master's ratios, the master's gaps compress (never below
+   0.35 em) or expand to fit, the logo anchors to the top inset and the legal line to the bottom inset, and the
+   leftover space is split the way the master splits it. Candidates are scored, not taken first-fit: the full
+   message at a smaller size beats a bigger headline that says less (short-form × 0.7, body dropped × 0.6, each line
+   beyond the master's own breaks × 0.88), so copy is only cut under real pressure. Lines are set with a balanced
+   wrapper (even measures, sentence ends at line ends, never a lone short word on the last line). Strips (≥ 3:1) are
+   one row — logo, headline, CTA on a shared centre line — with the legal line below. The legal line is reserved at
+   its floor first (14 px display, 18 px-equivalent social); if it cannot fit, the size is blocked for compliance.
 
 ## Decisions carried over from the prototype
 
@@ -120,6 +128,11 @@ safe-zone gate checks.
 7. Any failed automated gate withholds the download.
 8. The client vertical is BFSI, so `regulated` is always true; the UI shows whether a disclaimer was actually detected.
 9. Escalations are recorded and shown on the result card.
+10. **A fully re-settable master rebuilds instead of cropping or extending.** When every element is text with a spec
+    or a logo on a flat field, nothing is lost by rebuilding it on its layout system, and a lot is lost by not doing
+    so: a crop pushes copy to the edge and an expand leaves the master floating as an island in new canvas. So for
+    such masters the ratio bands only decide between SCALE and a rebuild (the Sizes screen marks these "· layout").
+    Photo masters still crop and expand, and their crop window now keeps droppable copy inside the safe zone too.
 
 Fixes on top of the prototype logic: recompose fit maths use the padded patch size; the legal floor follows the output
 format (14 px display, 18 px-equivalent social) instead of a fixed 18 px; and elements with no readable text still fall

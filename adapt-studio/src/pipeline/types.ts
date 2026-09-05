@@ -118,20 +118,34 @@ export type TextMeasurer = (spec: Pick<TextSpec, 'family' | 'weight' | 'italic'>
  */
 export interface LayoutSystem {
   align: 'left' | 'center' | 'right';
-  /** Font-size ratios vs the headline (headline = 1). */
-  scale: { subhead: number; body: number; cta: number; legal: number };
-  /** Vertical rhythm between stacked blocks, in em of the headline size. */
+  /** Font-size ratios vs the headline (headline = 1); `logo` is the logo's height in headline ems. */
+  scale: { subhead: number; body: number; cta: number; legal: number; logo: number };
+  /** Vertical rhythm between the headline and the block below it, in em of the headline size. */
   gapEm: number;
+  /** Gap after each block in the master's stack, in headline ems (logo → headline, headline → next, body → next, CTA → next). */
+  gaps: { logo: number; headline: number; body: number; cta: number };
   /** Where the logo sits in the master. */
   logoCorner: 'tl' | 'tr' | 'bl' | 'br';
   /** Content inset from the master's edges as a fraction of its width / height. */
   inset: { x: number; y: number };
+  /** Where the message block sits in the free space between logo and legal (0 = hugging the logo, 1 = hugging the legal). */
+  blockPos: number;
+  /** Width of the text column as a share of the content width (headline / body measure). */
+  textFrac: number;
+  /** CTA pill geometry when the master's CTA is a filled button: height and horizontal padding in CTA ems. */
+  pill: { ratio: number; padEm: number };
+  /** Where the main visual sits relative to the text, when the master has one. */
+  visualPos: 'left' | 'right' | 'above' | 'below' | 'none';
 }
 
 /** A text run extracted from the PDF (viewport px), before grouping into elements. */
 export interface TextRun { str: string; x: number; y: number; w: number; h: number; fontPx: number; fontName: string; hasEOL: boolean }
 
-export interface RouteResult { strategy: Strategy; delta: number; skinny: boolean }
+export interface RouteResult {
+  strategy: Strategy; delta: number; skinny: boolean;
+  /** Set when the strategy was overridden by a layout decision rather than ratio math ('layout-system'). */
+  reason?: 'layout-system';
+}
 
 interface PlanBase { keepRects: KeepRect[]; masks: Mask[]; summary: string }
 export interface ScalePlan extends PlanBase { kind: 'SCALE'; s: number; ox: number; oy: number }

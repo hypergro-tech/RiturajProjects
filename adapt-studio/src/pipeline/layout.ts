@@ -1,15 +1,16 @@
 import { relativeLuminance } from './model';
-import { isFilledShape, joinRuns, sampleTextColors } from './text';
-import type { Box, Complexity, Direction, ElementType, LayoutSystem, ObjectModel, PixelSampler, RawElement, RawObjectModel, TextRun } from './types';
+import { approxMeasurer, isFilledShape, joinRuns, sampleTextColors } from './text';
+import type { Box, Complexity, Direction, ElementType, LayoutSystem, ObjectModel, PixelSampler, RawElement, RawObjectModel, TaggedElement, TextRun } from './types';
 
 const clampNum = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
 
 /**
  * Read the master's own layout system off the tagged elements so rebuilt sizes keep its voice:
  * text alignment, type-scale ratios against the headline, the vertical rhythm between blocks, where
- * the logo lives, and how far content sits from the edges.
+ * the logo lives, how far content sits from the edges, how wide the text column is, where the message
+ * block floats between logo and legal, and the CTA pill's proportions.
  */
-export function deriveLayoutSystem(model: ObjectModel, _rw: number, rh: number): LayoutSystem {
+export function deriveLayoutSystem(model: ObjectModel, rw: number, rh: number): LayoutSystem {
   const find = (t: ElementType) => model.elements.find((e) => e.type === t);
   const hl = find('headline');
   const H = hl?.fontPx || 0;
@@ -17,25 +18,76 @@ export function deriveLayoutSystem(model: ObjectModel, _rw: number, rh: number):
     const e = find(t);
     return e && e.fontPx > 0 && H > 0 ? clampNum(e.fontPx / H, 0.2, 1) : def;
   };
-  let gapEm = 0.6;
-  if (hl && H > 0) {
-    const bottom = hl.box.y + hl.box.h;
+  const em = (px: number) => (H > 0 ? px / H : NaN);
+  const r2 = (v: number) => Math.round(v * 100) / 100;
+
+  // Gap after each block: the distance to the next element below it, in headline ems.
+  const gapAfter = (e: TaggedElement | undefined): number | undefined => {
+    if (!e || H <= 0) return undefined;
+    const bottom = e.box.y + e.box.h;
     const below = model.elements
-      .filter((e) => e !== hl && e.fontPx > 0 && e.box.y >= bottom - 0.005)
+      .filter((o) => o !== e && (o.fontPx > 0 || o.type === 'logo') && o.box.y >= bottom - 0.005)
       .sort((a, b) => a.box.y - b.box.y)[0];
-    if (below) gapEm = clampNum(((below.box.y - bottom) * rh) / H, 0.25, 1.4);
-  }
-  const logo = find('logo');
+    return below ? clampNum(em((below.box.y - bottom) * rh), 0.25, 3) : undefined;
+  };
+  const logo = find('logo'), body = find('subhead') ?? find('body'), cta = find('cta'), legal = find('legal');
+  const gapEm = gapAfter(hl) === undefined ? 0.6 : clampNum(gapAfter(hl) as number, 0.25, 1.4);
+  const gaps = {
+    logo: r2(gapAfter(logo) ?? 1.2),
+    headline: r2(gapEm),
+    body: r2(gapAfter(body) ?? gapEm * 1.1),
+    cta: r2(gapAfter(cta) ?? gapEm),
+  };
+
   const logoCorner: LayoutSystem['logoCorner'] = logo
     ? `${logo.box.y + logo.box.h / 2 < 0.5 ? 't' : 'b'}${logo.box.x + logo.box.w / 2 < 0.5 ? 'l' : 'r'}` as LayoutSystem['logoCorner']
     : 'tl';
   const xs = model.elements.map((e) => e.box.x), ys = model.elements.map((e) => e.box.y);
+  const inset = { x: xs.length ? clampNum(Math.min(...xs), 0, 0.3) : 0.08, y: ys.length ? clampNum(Math.min(...ys), 0, 0.3) : 0.08 };
+
+  // Where the message block (headline … CTA) floats in the free space between the logo and the legal line.
+  let blockPos = 0.35;
+  if (hl) {
+    const top = logo && logo.box.y < hl.box.y ? logo.box.y + logo.box.h : inset.y;
+    const bottom = legal && legal.box.y > hl.box.y ? legal.box.y : 1 - inset.y;
+    const last = [hl, body, cta].filter((e): e is TaggedElement => !!e && e.box.y >= hl.box.y).sort((a, b) => b.box.y + b.box.h - (a.box.y + a.box.h))[0];
+    const blockH = last.box.y + last.box.h - hl.box.y;
+    const free = bottom - top - blockH;
+    if (free > 0.02) blockPos = clampNum((hl.box.y - top) / free, 0, 1);
+  }
+
+  const measureW = Math.max(hl?.box.w ?? 0, body?.box.w ?? 0);
+  const textFrac = measureW > 0 ? clampNum(measureW / Math.max(0.2, 1 - 2 * inset.x), 0.4, 1) : 0.8;
+
+  const pill = { ratio: 2.4, padEm: 1.1 };
+  if (cta?.text?.bgColor && cta.fontPx > 0) {
+    pill.ratio = clampNum((cta.box.h * rh) / cta.fontPx, 1.6, 3.2);
+    const textW = approxMeasurer(cta.text, cta.fontPx, cta.text.content);
+    pill.padEm = clampNum((cta.box.w * rw - textW) / 2 / cta.fontPx, 0.6, 2);
+  }
+
+  const visual = find('product') ?? find('person');
+  let visualPos: LayoutSystem['visualPos'] = 'none';
+  if (visual && hl) {
+    const dx = visual.box.x + visual.box.w / 2 - (hl.box.x + hl.box.w / 2);
+    const dy = visual.box.y + visual.box.h / 2 - (hl.box.y + hl.box.h / 2);
+    visualPos = Math.abs(dx) >= Math.abs(dy) ? (dx < 0 ? 'left' : 'right') : dy < 0 ? 'above' : 'below';
+  }
+
   return {
     align: hl?.text?.align ?? 'left',
-    scale: { subhead: ratio('subhead', 0.5), body: ratio('body', 0.42), cta: ratio('cta', 0.45), legal: ratio('legal', 0.3) },
-    gapEm: Math.round(gapEm * 100) / 100,
+    scale: {
+      subhead: ratio('subhead', 0.5), body: ratio('body', 0.42), cta: ratio('cta', 0.45), legal: ratio('legal', 0.3),
+      logo: logo && H > 0 ? r2(clampNum(em(logo.box.h * rh), 0.4, 2.5)) : 1,
+    },
+    gapEm: r2(gapEm),
+    gaps,
     logoCorner,
-    inset: { x: xs.length ? clampNum(Math.min(...xs), 0, 0.3) : 0.08, y: ys.length ? clampNum(Math.min(...ys), 0, 0.3) : 0.08 },
+    inset,
+    blockPos: r2(blockPos),
+    textFrac: r2(textFrac),
+    pill: { ratio: r2(pill.ratio), padEm: r2(pill.padEm) },
+    visualPos,
   };
 }
 
@@ -218,8 +270,10 @@ const words = (s: string) => s.split(/\s+/).filter(Boolean).length;
 /** Short form for a headline: the first clause if it is ≤ 4 words, else the first three words. */
 export function shortFormOf(text: string, maxWords = 4): string {
   const first = text.split(/\n/)[0];
-  const clause = first.split(/[.!?,;:—–]/)[0].trim();
-  if (clause && words(clause) <= maxWords && clause !== first.trim()) return clause;
+  const m = /^([^.!?,;:—–]+)([.!?])?/.exec(first);
+  const clause = (m?.[1] ?? '').trim();
+  // keep a sentence's own full stop so the short form still reads as a finished line
+  if (clause && words(clause) <= maxWords && clause !== first.trim()) return clause + (m?.[2] ?? '');
   const ws = first.trim().split(/\s+/);
   return ws.length > maxWords ? ws.slice(0, 3).join(' ') : '';
 }

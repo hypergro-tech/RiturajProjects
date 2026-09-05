@@ -52,7 +52,7 @@ async function readResults(page) {
     download: c.querySelector('.btn-xs')?.textContent ?? '',
   })));
   console.log('summary:', summary);
-  for (const c of cards) console.log(`  ${c.name} ${c.dims} [${c.badge}] ${c.status} | ${c.gates.join(' ')} | ${c.download}${c.escalation ? '\n     ' + c.escalation : ''}`);
+  for (const c of cards) console.log(`  ${c.name} ${c.dims} [${c.badge}] ${c.status} | ${c.gates.join(' ')} | ${c.download}${c.escalation ? '\n     ' + c.escalation : ''}\n     ${c.summary}`);
   return { summary, cards };
 }
 

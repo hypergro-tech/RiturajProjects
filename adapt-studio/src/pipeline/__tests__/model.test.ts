@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { deriveFontPx, firstIllegible, keepUnion, measureContrast, normalizeModel, sampleBgColor } from '../model';
+import { deriveFontPx, firstIllegible, isResettable, keepUnion, measureContrast, normalizeModel, sampleBgColor } from '../model';
 import type { ObjectModel, PixelSampler, RawObjectModel } from '../types';
 
 const solid = (r: number, g: number, b: number): PixelSampler => (_x, _y, w, h) => {
@@ -141,5 +141,22 @@ describe('keepUnion() / firstIllegible()', () => {
     // legal fontPx = 50 × 0.78 = 39; floor 18 → illegible below scale ≈ 0.46
     expect(firstIllegible(model, 0.5)).toBeUndefined();
     expect(firstIllegible(model, 0.4)?.type).toBe('legal');
+  });
+});
+
+describe('isResettable()', () => {
+  const text = { content: 'x', shortForm: '', family: 'Lato', weight: 400, italic: false, color: '#fff', bgColor: '', lineHeight: 1.2, letterSpacing: 0, align: 'left' as const, source: 'pdf' as const, fontSource: 'web' as const, fontLabel: '' };
+  const flat = normalizeModel({ elements: [
+    { type: 'logo', box: { x: 0.1, y: 0.1, w: 0.2, h: 0.1 } },
+    { type: 'headline', box: { x: 0.1, y: 0.3, w: 0.6, h: 0.1 }, lines: 1, text: 'x' },
+    { type: 'legal', box: { x: 0.1, y: 0.8, w: 0.6, h: 0.04 }, lines: 1, text: 'x' },
+  ], background: { complexity: 'simple' } }, 1000, '#000');
+  const withText = (m: ObjectModel): ObjectModel => ({ ...m, elements: m.elements.map((e) => (e.fontPx > 0 ? { ...e, text } : e)) });
+  it('needs every text element to carry a spec, only a logo besides text, and a flat background', () => {
+    expect(isResettable(withText(flat))).toBe(true);
+    expect(isResettable(flat)).toBe(false); // no text specs
+    expect(isResettable({ ...withText(flat), background: { ...flat.background, complexity: 'complex' } })).toBe(false);
+    const photo = withText(flat);
+    expect(isResettable({ ...photo, elements: [...photo.elements, { ...photo.elements[0], type: 'person' }] })).toBe(false);
   });
 });

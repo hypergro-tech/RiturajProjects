@@ -28,6 +28,16 @@ describe('route()', () => {
     expect(at(0.9001)).toBe('RECOMPOSE');
   });
 
+  it('sends a fully re-settable master to the layout system whenever a uniform scale is not enough', () => {
+    expect(route(1, 1080, 1350, true)).toMatchObject({ strategy: 'RECOMPOSE', reason: 'layout-system', skinny: false });
+    expect(route(1, 1080, 1920, true)).toMatchObject({ strategy: 'RECOMPOSE', reason: 'layout-system' });
+    expect(route(1, 1080, 1080, true)).toMatchObject({ strategy: 'SCALE' });
+    expect(route(1, 1080, 1080, true).reason).toBeUndefined();
+    expect(route(1, 728, 90, true)).toMatchObject({ strategy: 'RECOMPOSE', skinny: true });
+    expect(route(1, 728, 90, true).reason).toBeUndefined();
+    expect(route(1, 1080, 1350, false).strategy).toBe('SMART_CROP');
+  });
+
   it('is symmetric: widening and narrowing by the same factor give the same delta', () => {
     expect(route(1, 1000, 1500).delta).toBeCloseTo(route(1, 1500, 1000).delta, 12);
     expect(route(1, 1080, 1350).delta).toBeCloseTo(Math.abs(Math.log(0.8)), 12);

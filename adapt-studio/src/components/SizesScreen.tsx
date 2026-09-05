@@ -1,14 +1,16 @@
 import { useState } from 'react';
+import { isResettable } from '../pipeline/model';
 import { route } from '../pipeline/router';
-import type { TargetSize } from '../pipeline/types';
+import type { ObjectModel, TargetSize } from '../pipeline/types';
 import { StrategyBadge } from './ui';
 
 interface Props {
-  masterRatio: number; sizes: TargetSize[]; isSelected: (i: number) => boolean; selectedCount: number;
+  masterRatio: number; model: ObjectModel | null; sizes: TargetSize[]; isSelected: (i: number) => boolean; selectedCount: number;
   onToggle: (i: number) => void; onAddCustom: (w: number, h: number) => string | null; onGenerate: () => void;
 }
 
-export function SizesScreen({ masterRatio, sizes, isSelected, selectedCount, onToggle, onAddCustom, onGenerate }: Props) {
+export function SizesScreen({ masterRatio, model, sizes, isSelected, selectedCount, onToggle, onAddCustom, onGenerate }: Props) {
+  const resettable = !!model && isResettable(model);
   const [cw, setCw] = useState('');
   const [ch, setCh] = useState('');
   const [err, setErr] = useState('');
@@ -21,11 +23,14 @@ export function SizesScreen({ masterRatio, sizes, isSelected, selectedCount, onT
     <section className="sizes">
       <div className="sizes-head">
         <h2 className="h2">Target sizes</h2>
-        <div className="subhead">Strategy badge computed before generation — router: Δ = |ln(target ÷ master ratio {masterRatio.toFixed(2)})|</div>
+        <div className="subhead">
+          Strategy badge computed before generation — router: Δ = |ln(target ÷ master ratio {masterRatio.toFixed(2)})|
+          {resettable && ' · flat text-only master: every non-scale size is rebuilt on its layout system'}
+        </div>
       </div>
       <div className="tile-grid">
         {sizes.map((s, i) => {
-          const rt = route(masterRatio, s.w, s.h);
+          const rt = route(masterRatio, s.w, s.h, resettable);
           const sc = Math.min(150 / s.w, 58 / s.h);
           const on = isSelected(i);
           return (
@@ -50,7 +55,7 @@ export function SizesScreen({ masterRatio, sizes, isSelected, selectedCount, onT
               </div>
               <div className="tile-badge-row">
                 <StrategyBadge strategy={rt.strategy} planned />
-                <span className="mono tile-delta">{rt.skinny ? 'skinny' : `Δ ${rt.delta.toFixed(2)}`}</span>
+                <span className="mono tile-delta">{rt.skinny ? 'skinny' : rt.reason ? `Δ ${rt.delta.toFixed(2)} · layout` : `Δ ${rt.delta.toFixed(2)}`}</span>
               </div>
             </div>
           );

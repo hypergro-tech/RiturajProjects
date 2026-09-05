@@ -109,6 +109,15 @@ describe('measureContrast()', () => {
     expect(c).toBeGreaterThan(4.5); // navy on orange ≈ 5.0:1, not orange on blue ≈ 3.6:1
     expect(c).toBeLessThan(5.5);
   });
+  it('judges re-set text by the colours it will be drawn in, not by the master pixels', () => {
+    const spec = { content: 'x', shortForm: '', family: 'Lato', weight: 400, italic: false, color: '#ffffff', bgColor: '', lineHeight: 1.2, letterSpacing: 0, align: 'left' as const, source: 'pdf' as const, fontSource: 'web' as const, fontLabel: '' };
+    const withText = { ...model, background: { ...model.background, color: '#8b1a1a' }, elements: [{ ...model.elements[0], text: spec }, model.elements[1]] };
+    // thin white letters on maroon: the raster sample would read a blend, the colours say ≈ 9:1
+    const out = measureContrast(withText, solid(150, 60, 60), 1000, 1000);
+    expect(out.elements[0].contrast).toBeGreaterThan(8.5);
+    const pill = { ...withText, elements: [{ ...withText.elements[0], text: { ...spec, color: '#003a8f', bgColor: '#ff9c00' } }] };
+    expect(measureContrast(pill, solid(150, 60, 60), 1000, 1000).elements[0].contrast).toBeCloseTo(5.0, 0);
+  });
   it('reports 1:1 for text on an identical background', () => {
     expect(measureContrast(model, solid(128, 128, 128), 1000, 1000).elements[0].contrast).toBeCloseTo(1, 5);
   });

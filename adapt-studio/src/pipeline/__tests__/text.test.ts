@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { normalizeModel } from '../model';
 import { fitText, wrapText } from '../recompose';
-import { approxMeasurer, attachTextSpecs, groupRunsIntoElements, isFilledShape, parseFontName, resolveFont, sampleTextColors } from '../text';
+import { approxMeasurer, attachTextSpecs, groupRunsIntoElements, inferAlign, isFilledShape, joinRuns, parseFontName, resolveFont, sampleTextColors } from '../text';
 import type { PixelSampler, TextRun, TextSpec } from '../types';
 
 describe('parseFontName()', () => {
@@ -85,6 +85,23 @@ describe('sampleTextColors() / isFilledShape()', () => {
   });
 });
 
+describe('joinRuns() / inferAlign()', () => {
+  it('adds a space only at real word gaps and reads tracking from per-glyph runs', () => {
+    // "S E A S O N" as pdf.js emits tracked text: one run per glyph, 0.3 em apart
+    const glyphs = 'SEASON'.split('').map((ch, i) => ({ str: ch, x: 100 + i * 26, y: 0, w: 14, h: 24, fontPx: 20, fontName: 'f', hasEOL: false }));
+    const words = [{ str: 'Apply', x: 0, y: 0, w: 50, h: 24, fontPx: 20, fontName: 'f', hasEOL: false }, { str: 'now', x: 58, y: 0, w: 30, h: 24, fontPx: 20, fontName: 'f', hasEOL: false }];
+    expect(joinRuns(glyphs, 20)).toEqual({ text: 'SEASON', letterSpacing: 0.6 });
+    expect(joinRuns(words, 20)).toEqual({ text: 'Apply now', letterSpacing: 0 });
+    const tight = [{ str: 'Ap', x: 0, y: 0, w: 20, h: 24, fontPx: 20, fontName: 'f', hasEOL: false }, { str: 'ply', x: 21, y: 0, w: 30, h: 24, fontPx: 20, fontName: 'f', hasEOL: false }];
+    expect(joinRuns(tight, 20).text).toBe('Apply');
+  });
+  it('tells left, centred and right-aligned blocks apart', () => {
+    expect(inferAlign([{ x0: 100, x1: 500 }, { x0: 100, x1: 380 }], 100, 800)).toBe('left');
+    expect(inferAlign([{ x0: 300, x1: 500 }, { x0: 350, x1: 450 }], 0, 800)).toBe('center');
+    expect(inferAlign([{ x0: 400, x1: 700 }, { x0: 550, x1: 700 }], 0, 700)).toBe('right');
+  });
+});
+
 describe('attachTextSpecs()', () => {
   const white = mixed([[8, [0, 75, 190]], [2, [255, 255, 255]]]);
   it('uses PDF runs when present, the vision transcription otherwise, and no spec when neither exists', () => {
@@ -116,7 +133,7 @@ describe('attachTextSpecs()', () => {
 });
 
 describe('wrapText() / fitText()', () => {
-  const spec: TextSpec = { content: '', shortForm: '', family: 'Lato', weight: 400, italic: false, color: '#fff', bgColor: '', lineHeight: 1.25, source: 'demo', fontSource: 'web', fontLabel: '' };
+  const spec: TextSpec = { content: '', shortForm: '', family: 'Lato', weight: 400, italic: false, color: '#fff', bgColor: '', lineHeight: 1.25, letterSpacing: 0, align: 'left', source: 'demo', fontSource: 'web', fontLabel: '' };
   it('wraps greedily at maxW and honours explicit breaks', () => {
     // approxMeasurer: 0.5 × px per character → at 10px, 20 chars per 100px
     expect(wrapText(approxMeasurer, spec, 10, 'aaaa bbbb cccc dddd eeee', 100)).toEqual(['aaaa bbbb cccc dddd', 'eeee']);

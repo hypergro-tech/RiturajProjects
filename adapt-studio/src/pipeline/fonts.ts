@@ -13,15 +13,25 @@ export function canvasMeasurer(): TextMeasurer {
   const cache = new Map<string, number>();
   return (spec, px, text) => {
     const font = fontString(spec, px);
-    const key = font + ' ' + text;
+    const tracking = (spec.letterSpacing ?? 0) * px;
+    const key = `${font}|${tracking}|${text}`;
     let w = cache.get(key);
     if (w === undefined) {
       ctx.font = font;
+      setTracking(ctx, tracking);
       w = ctx.measureText(text).width;
+      if (!supportsTracking(ctx)) w += tracking * text.length; // older engines: approximate
       cache.set(key, w);
     }
     return w;
   };
+}
+
+const supportsTracking = (ctx: CanvasRenderingContext2D) => 'letterSpacing' in ctx;
+
+/** Apply tracking on engines that support the canvas letterSpacing property (Chrome, Safari 17.4+, Firefox). */
+export function setTracking(ctx: CanvasRenderingContext2D, px: number): void {
+  if (supportsTracking(ctx)) (ctx as CanvasRenderingContext2D & { letterSpacing: string }).letterSpacing = `${px}px`;
 }
 
 /** A family counts as available only when a loaded face with that name exists; `document.fonts.check` says yes for unknown families. */

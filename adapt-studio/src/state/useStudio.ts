@@ -288,22 +288,28 @@ export function useStudio() {
     setTimeout(() => URL.revokeObjectURL(url), 30_000);
   }, []);
 
+  /** File names carry the master's name: "FedOne_PersonalLoan_KV" → FedOne_PersonalLoan_KV_300x250.png. */
+  const filePrefix = useMemo(() => {
+    const base = state.fileName.replace(/\s*\(demo\)\s*$/i, '').replace(/\.(ai|pdf)$/i, '').replace(/[^A-Za-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
+    return (base || 'adapt').slice(0, 48);
+  }, [state.fileName]);
+
   const download = useCallback((r: AdaptResult) => {
     if (!r.canDownload || !r.blob) return;
-    void saveFile(`FederalBank_${r.W}x${r.H}.${r.fmt.toLowerCase()}`, r.blob);
-  }, [saveFile]);
+    void saveFile(`${filePrefix}_${r.W}x${r.H}.${r.fmt.toLowerCase()}`, r.blob);
+  }, [filePrefix, saveFile]);
 
   /** One ZIP with every exportable adapt (blocked sizes are excluded by construction). */
   const downloadAll = useCallback(async () => {
     const files: Record<string, Uint8Array> = {};
     for (const r of state.results) {
       if (!r.canDownload || !r.blob) continue;
-      files[`FederalBank_${r.W}x${r.H}.${r.fmt.toLowerCase()}`] = new Uint8Array(await r.blob.arrayBuffer());
+      files[`${filePrefix}_${r.W}x${r.H}.${r.fmt.toLowerCase()}`] = new Uint8Array(await r.blob.arrayBuffer());
     }
     if (!Object.keys(files).length) return;
     const zipped = zipSync(files, { level: 0 });
-    await saveFile('FederalBank_adapts.zip', new Blob([zipped.buffer as ArrayBuffer], { type: 'application/zip' }));
-  }, [saveFile, state.results]);
+    await saveFile(`${filePrefix}_adapts.zip`, new Blob([zipped.buffer as ArrayBuffer], { type: 'application/zip' }));
+  }, [filePrefix, saveFile, state.results]);
 
   const restart = useCallback(() => {
     urlsRef.current.forEach((u) => URL.revokeObjectURL(u));

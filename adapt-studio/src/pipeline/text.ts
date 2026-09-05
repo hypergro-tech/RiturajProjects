@@ -1,5 +1,5 @@
 import { BRAND_FONTS, WEB_FONTS } from './constants';
-import { relativeLuminance } from './model';
+import { contrastOfHex, lumOfHex, relativeLuminance } from './model';
 import type { Box, ElementType, ObjectModel, PixelSampler, TaggedElement, TextMeasurer, TextRun, TextSpec } from './types';
 
 /** A font as reported by pdf.js: the PostScript name and the family it registered the embedded face under. */
@@ -57,7 +57,62 @@ export function resolveFont(type: ElementType, pdfFont: FontInfo | null, fontAva
   };
 }
 
-export interface GroupedText { text: string; fontName: string; fontPx: number; /** union of the runs, master px */ bounds: { x: number; y: number; w: number; h: number } }
+export interface GroupedText {
+  text: string;
+  fontName: string;
+  fontPx: number;
+  /** union of the runs, master px */
+  bounds: { x: number; y: number; w: number; h: number };
+  /** tracking in em read from glyph gaps (0 = normal) */
+  letterSpacing: number;
+  /** baseline-to-baseline distance ÷ font size (0 = single line, unknown) */
+  lineHeight: number;
+  align: 'left' | 'center' | 'right';
+}
+
+/**
+ * Join the runs of one line into a string. pdf.js splits tracked text into per-glyph runs, so a space is
+ * inserted only where the gap between runs is a real word gap (≥ 0.22 em); tracking is the median gap
+ * between glyph-sized runs, in em.
+ */
+export function joinRuns(runs: TextRun[], fontPx: number): { text: string; letterSpacing: number } {
+  const sorted = [...runs].sort((a, b) => a.x - b.x);
+  if (!sorted.length) return { text: '', letterSpacing: 0 };
+  const isGlyph = (r: TextRun) => r.str.trim().length <= 2;
+  const gaps = sorted.slice(1).map((r, i) => (r.x - (sorted[i].x + sorted[i].w)) / fontPx);
+  const touching = (i: number) => /\s$/.test(sorted[i].str) || /^\s/.test(sorted[i + 1].str);
+  // tracking = the typical gap between glyph-sized runs (tracked text arrives one glyph per run)
+  const glyphGaps = gaps.filter((_, i) => isGlyph(sorted[i]) && isGlyph(sorted[i + 1]) && !touching(i));
+  let letterSpacing = 0;
+  if (glyphGaps.length >= 3 && glyphGaps.length >= gaps.length * 0.5) {
+    const g = [...glyphGaps].sort((a, b) => a - b)[Math.floor(glyphGaps.length / 2)];
+    if (g > 0.04 && g <= 0.8) letterSpacing = Math.round(g * 100) / 100;
+  }
+  let text = sorted[0].str;
+  for (let i = 1; i < sorted.length; i++) {
+    const prev = sorted[i - 1], r = sorted[i], gap = gaps[i - 1];
+    // a word space is wider than the tracking between glyphs; between word-sized runs anything beyond a kern is a space
+    const wordGap = isGlyph(prev) && isGlyph(r) ? gap > letterSpacing + 0.15 : gap > 0.12;
+    if (!touching(i - 1) && wordGap) text += ' ';
+    text += r.str;
+  }
+  return { text: text.replace(/\s+/g, ' ').trim(), letterSpacing };
+}
+
+/** Alignment of a set of lines (px boxes) inside a container of width `w` starting at `x0`. */
+export function inferAlign(lines: Array<{ x0: number; x1: number }>, x0: number, w: number): 'left' | 'center' | 'right' {
+  if (lines.length < 2) {
+    const c = (lines[0].x0 + lines[0].x1) / 2;
+    return Math.abs(c - (x0 + w / 2)) < w * 0.06 && lines[0].x0 - x0 > w * 0.08 ? 'center' : 'left';
+  }
+  const tol = Math.max(2, w * 0.02);
+  const lefts = lines.map((l) => l.x0), rights = lines.map((l) => l.x1), centers = lines.map((l) => (l.x0 + l.x1) / 2);
+  const spread = (v: number[]) => Math.max(...v) - Math.min(...v);
+  if (spread(lefts) <= tol) return 'left';
+  if (spread(centers) <= tol) return 'center';
+  if (spread(rights) <= tol) return 'right';
+  return spread(lefts) <= spread(centers) ? 'left' : 'center';
+}
 
 /**
  * Assign PDF text runs to the vision elements whose (slightly padded) box contains the run centre, then
@@ -90,24 +145,35 @@ export function groupRunsIntoElements(runs: TextRun[], elements: TaggedElement[]
     const mine = buckets.get(i);
     if (!mine?.length) return;
     mine.sort((a, b) => (Math.abs(a.y - b.y) > Math.min(a.h, b.h) * 0.5 ? a.y - b.y : a.x - b.x));
-    const lines: string[] = [];
-    let cur: string[] = [], lineY = mine[0].y, lineH = mine[0].h, prev: TextRun | null = null;
+    const sizes = mine.map((r) => r.fontPx).sort((a, b) => a - b);
+    const fontPx = sizes[Math.floor(sizes.length / 2)];
+    const lineRuns: TextRun[][] = [];
+    let cur: TextRun[] = [], lineY = mine[0].y, lineH = mine[0].h, prev: TextRun | null = null;
     for (const r of mine) {
       const newLine = prev !== null && (Math.abs(r.y - lineY) > lineH * 0.5 || prev.hasEOL);
-      if (newLine) { lines.push(cur.join(' ')); cur = []; lineY = r.y; lineH = r.h; }
-      cur.push(r.str.trim());
+      if (newLine) { lineRuns.push(cur); cur = []; lineY = r.y; lineH = r.h; }
+      cur.push(r);
       prev = r;
     }
-    if (cur.length) lines.push(cur.join(' '));
-    const text = lines.map((l) => l.replace(/\s+/g, ' ').trim()).filter(Boolean).join('\n');
+    if (cur.length) lineRuns.push(cur);
+    const joined = lineRuns.map((lr) => joinRuns(lr, fontPx));
+    const text = joined.map((j) => j.text).filter(Boolean).join('\n');
     if (!text) return;
+    const trackings = joined.map((j) => j.letterSpacing).filter((v) => v > 0);
+    const letterSpacing = trackings.length >= Math.ceil(joined.length / 2) ? Math.max(...trackings) : 0;
     const byFont = new Map<string, number>();
     for (const r of mine) byFont.set(r.fontName, (byFont.get(r.fontName) ?? 0) + r.str.length);
     const fontName = [...byFont.entries()].sort((a, b) => b[1] - a[1])[0][0];
-    const sizes = mine.map((r) => r.fontPx).sort((a, b) => a - b);
     const bx = Math.min(...mine.map((r) => r.x)), by = Math.min(...mine.map((r) => r.y));
     const bounds = { x: bx, y: by, w: Math.max(...mine.map((r) => r.x + r.w)) - bx, h: Math.max(...mine.map((r) => r.y + r.h)) - by };
-    out.set(i, { text, fontName, fontPx: sizes[Math.floor(sizes.length / 2)], bounds });
+    const lineBoxes = lineRuns.map((lr) => ({ x0: Math.min(...lr.map((r) => r.x)), x1: Math.max(...lr.map((r) => r.x + r.w)), y: Math.min(...lr.map((r) => r.y)) }));
+    let lineHeight = 0;
+    if (lineBoxes.length > 1) {
+      const steps = lineBoxes.slice(1).map((l, k) => (l.y - lineBoxes[k].y) / fontPx).filter((v) => v > 0.6 && v < 3).sort((a, b) => a - b);
+      if (steps.length) lineHeight = Math.round(steps[Math.floor(steps.length / 2)] * 100) / 100;
+    }
+    const align = inferAlign(lineBoxes, rw * elements[i].box.x, rw * elements[i].box.w);
+    out.set(i, { text, fontName, fontPx, bounds, letterSpacing, lineHeight, align });
   });
   return out;
 }
@@ -129,17 +195,14 @@ export function sampleTextColors(sample: PixelSampler, box: Box, rw: number, rh:
   if (!px.length) return { fg: '#000000', bg: '#ffffff', contrast: 21 };
   px.sort((a, b) => a[0] - b[0]);
   const at = (q: number) => px[Math.min(px.length - 1, Math.floor(px.length * q))];
-  const lo = at(0.02), bg = at(0.5), hi = at(0.98);
+  // glyph cores, not anti-aliased edges: the extreme half-percent on each side
+  const lo = at(0.005), bg = at(0.5), hi = at(0.995);
   const up = (hi[0] + 0.05) / (bg[0] + 0.05), down = (bg[0] + 0.05) / (lo[0] + 0.05);
   const fg = up >= down ? hi : lo;
   return { fg: hex(fg[1], fg[2], fg[3]), bg: hex(bg[1], bg[2], bg[3]), contrast: Math.max(up, down) };
 }
 
-function lumOfHex(h: string): number {
-  const m = /^#?([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(h);
-  if (!m) return 0;
-  return relativeLuminance(parseInt(m[1], 16), parseInt(m[2], 16), parseInt(m[3], 16));
-}
+export { contrastOfHex, lumOfHex };
 
 /** True when a text element sits on its own filled shape (a button) rather than on the page background. */
 export function isFilledShape(shapeBg: string, pageBg: string): boolean {
@@ -175,11 +238,14 @@ export function attachTextSpecs(model: ObjectModel, input: AttachInput): ObjectM
     const box = g ? tightenBox(g.bounds, input.rw, input.rh) : e.box;
     const { fg, bg } = sampleTextColors(input.sample, box, input.rw, input.rh);
     const bgColor = e.type === 'cta' && isFilledShape(bg, model.background.color) ? bg : '';
+    const defaultLh = e.type === 'headline' ? 1.12 : 1.25;
     const text: TextSpec = {
       content, shortForm: e.visionShortForm,
       family: font.family, weight: font.weight, italic: font.italic,
       color: fg, bgColor,
-      lineHeight: e.type === 'headline' ? 1.12 : 1.25,
+      lineHeight: g?.lineHeight ? Math.min(1.6, Math.max(1.0, g.lineHeight)) : defaultLh,
+      letterSpacing: g?.letterSpacing ?? 0,
+      align: g?.align ?? (Math.abs(e.box.x + e.box.w / 2 - 0.5) < 0.05 && e.box.x > 0.12 ? 'center' : 'left'),
       source: g ? 'pdf' : 'vision',
       fontSource: font.fontSource, fontLabel: font.fontLabel,
     };
@@ -197,4 +263,4 @@ function tightenBox(b: { x: number; y: number; w: number; h: number }, rw: numbe
 
 /** Rough width estimate used in tests and as a fallback when no canvas is available. */
 export const approxMeasurer: TextMeasurer = (spec, px, text) =>
-  text.length * px * (0.5 + (spec.weight >= 700 ? 0.05 : 0) + (spec.weight >= 800 ? 0.02 : 0));
+  text.length * px * (0.5 + (spec.weight >= 700 ? 0.05 : 0) + (spec.weight >= 800 ? 0.02 : 0) + (spec.letterSpacing ?? 0));

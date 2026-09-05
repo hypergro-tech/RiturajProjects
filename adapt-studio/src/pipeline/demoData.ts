@@ -33,6 +33,8 @@ export function demoTextSpec(d: DemoElement): TextSpec | undefined {
     color: d.type === 'cta' ? '#003A8F' : d.color === 'rgba(255,255,255,0.85)' ? '#d9e1f2' : '#ffffff',
     bgColor: d.type === 'cta' ? '#FF9C00' : '',
     lineHeight: d.type === 'headline' ? 1.14 : 1.25,
+    letterSpacing: 0,
+    align: 'left',
     source: 'demo', fontSource: 'web',
     fontLabel: `Figtree ${WEIGHT_LABEL[weight] ?? weight}${d.it ? ' Italic' : ''} (web font)`,
   };

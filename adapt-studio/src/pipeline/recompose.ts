@@ -1,4 +1,5 @@
 import { BLOCK_MESSAGE, LOGO_MIN_HEIGHT_PX } from './constants';
+import { deriveLayoutSystem } from './layout';
 import { legalMin } from './safeZones';
 import type {
   BlockedPlan, ElementType, KeepRect, LayoutOp, Margins, MasterInfo, ObjectModel, PlanOptions,
@@ -53,7 +54,9 @@ export function fitText(measure: TextMeasurer, spec: TextSpec, text: string, max
 const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
 
 interface Area { x: number; y: number; w: number; h: number }
-type Align = 'left' | 'center';
+type Align = 'left' | 'center' | 'right';
+/** x of a block of width `w` placed in area `a` with alignment. */
+const alignX = (a: Area, w: number, align: Align) => (align === 'center' ? a.x + (a.w - w) / 2 : align === 'right' ? a.x + a.w - w : a.x);
 
 /**
  * Stage 3 — RECOMPOSE. Discards the flat layout and rebuilds from the object model. Text elements that carry a
@@ -97,9 +100,14 @@ export function planRecompose(master: MasterInfo, model: ObjectModel, W: number,
   };
   const textBlock = (e: TaggedElement, spec: TextSpec, fit: Fit, x: number, y: number, align: Align, w: number) => {
     ops.push({ kind: 'text', spec, lines: fit.lines, x, y, px: fit.px, align, w });
-    const kx = align === 'center' ? x + (w - fit.w) / 2 : x;
+    const kx = alignX({ x, y, w, h: fit.h }, fit.w, align);
     keepRects.push({ type: e.type, fontPx: fit.px, min: e.minLegiblePx, x: kx, y, w: fit.w, h: fit.h });
   };
+  // The master's own system: alignment, type ratios, rhythm, logo corner.
+  const sys = deriveLayoutSystem(model, rw, rh);
+  const al: Align = sys.align;
+  const logoAlign = (stacked: boolean): Align => (stacked && al === 'center' ? 'center' : sys.logoCorner.endsWith('r') ? 'right' : 'left');
+  const rhythm = (headlinePx: number) => clamp(Math.round(sys.gapEm * headlinePx), 6, 40);
 
   /** Place the logo patch (never below the 20px brand minimum). */
   const setLogo = (a: Area, align: Align) => {
@@ -108,8 +116,7 @@ export function planRecompose(master: MasterInfo, model: ObjectModel, W: number,
     let k = Math.min(a.w / sw, a.h / sh, 1.6);
     if (sh * k < LOGO_MIN_HEIGHT_PX) { k = LOGO_MIN_HEIGHT_PX / sh; if (sw * k > a.w + 0.5) overflows.push(`logo needs ${Math.round(sw * k)}px width at its 20px minimum`); }
     const w = sw * k, h = sh * k;
-    const x = align === 'center' ? a.x + (a.w - w) / 2 : a.x;
-    patch(logo, x, a.y, k, true);
+    patch(logo, alignX(a, w, align), a.y, k, true);
     changes.push(`logo ${Math.round(h)}px tall`);
     return { w, h };
   };
@@ -120,7 +127,7 @@ export function planRecompose(master: MasterInfo, model: ObjectModel, W: number,
     const spec = e.text;
     if (!spec) {
       const k = patchScale(e, a.w, a.h);
-      const d = patch(e, align === 'center' ? a.x + (a.w - src(e).sw * k) / 2 : a.x, a.y, k, true);
+      const d = patch(e, alignX(a, src(e).sw * k, align), a.y, k, true);
       changes.push(`${label} scaled as a patch (no text available)`);
       return { ...d, px: (e.fontPx || 0) * k };
     }
@@ -144,7 +151,7 @@ export function planRecompose(master: MasterInfo, model: ObjectModel, W: number,
     const spec = cta.text;
     if (!spec) {
       const k = patchScale(cta, a.w, a.h);
-      const d = patch(cta, align === 'center' ? a.x + (a.w - src(cta).sw * k) / 2 : a.x, a.y, k, true);
+      const d = patch(cta, alignX(a, src(cta).sw * k, align), a.y, k, true);
       changes.push('CTA scaled as a patch (no text available)');
       return d;
     }
@@ -160,7 +167,7 @@ export function planRecompose(master: MasterInfo, model: ObjectModel, W: number,
       overflows.push(`CTA does not fit at its ${o.minPx}px floor`);
     }
     const w = fit.w + 2 * padX(fit.px), h = fit.px * spec.lineHeight + 2 * padY(fit.px);
-    const x = align === 'center' ? a.x + (a.w - w) / 2 : a.x;
+    const x = alignX(a, w, align);
     if (pill) ops.push({ kind: 'pill', x, y: a.y, w, h, fill: spec.bgColor });
     ops.push({ kind: 'text', spec, lines: fit.lines, x: x + padX(fit.px), y: a.y + padY(fit.px), px: fit.px, align: 'center', w: fit.w });
     keepRects.push({ type: 'cta', fontPx: fit.px, min: cta.minLegiblePx, x, y: a.y, w, h });
@@ -246,59 +253,63 @@ export function planRecompose(master: MasterInfo, model: ObjectModel, W: number,
   } else if (H / W >= 1.8) {
     // ---------- Vertical strip: logo, headline, (visual), CTA, legal top → bottom ----------
     template = 'Rebuilt top→bottom';
-    const gap = clamp(Math.round(H * 0.03), 8, 24);
+    const hlMax = clamp(Math.round(W * 0.16), 24, 90);
+    const gap = rhythm(hlMax * 0.8);
     let y = padT;
-    const lg = setLogo({ x: px, y, w: contentW, h: clamp(H * 0.06, 20, 80) }, 'center');
+    const lg = setLogo({ x: px, y, w: contentW, h: clamp(H * 0.06, 20, 80) }, logoAlign(true));
     if (lg.h) y += lg.h + gap;
     const lf = legalFit(contentW, H * 0.25, H >= 500 ? 4 : 3);
     if (!lf) return BLOCK;
     const legalY = H - padB - lf.h;
-    const ctaPx = clamp(Math.round(W * 0.09), 16, 36);
+    const ctaPx = clamp(Math.round(hlMax * sys.scale.cta), 16, 36);
     const ctaBefore = ops.length;
-    const ctaD = setCta({ x: px, y: 0, w: contentW, h: H * 0.12 }, { maxPx: ctaPx, minPx: cta?.minLegiblePx || 16, maxLines: 1 }, 'center');
+    const ctaD = setCta({ x: px, y: 0, w: contentW, h: H * 0.12 }, { maxPx: ctaPx, minPx: cta?.minLegiblePx || 16, maxLines: 1 }, al);
     const ctaY = legalY - (ctaD.h ? gap + ctaD.h : 0);
     for (let i = ctaBefore; i < ops.length; i++) { const o = ops[i]; if (o.kind === 'pill') o.y = ctaY; else if (o.kind === 'text') o.y += ctaY; }
     if (ctaD.h) { const kr = keepRects[keepRects.length - 1]; if (kr.type === 'cta') kr.y = ctaY; }
-    const hl = setText(headline, { x: px, y, w: contentW, h: Math.max(24, Math.min(H * 0.35, ctaY - gap - y)) }, { maxPx: clamp(Math.round(W * 0.16), 24, 90), minPx: headline?.minLegiblePx || 24, maxLines: 4 }, 'center', 'headline');
-    if (hl.h) y += hl.h + gap;
+    const hl = setText(headline, { x: px, y, w: contentW, h: Math.max(24, Math.min(H * 0.35, ctaY - gap - y)) }, { maxPx: hlMax, minPx: headline?.minLegiblePx || 24, maxLines: 4 }, al, 'headline');
+    if (hl.h) y += hl.h + rhythm(hl.px);
     if (body?.text) {
       const room = ctaY - gap - y;
-      if (room >= 2 * 14 * 1.25) { const b = setText(body, { x: px, y, w: contentW, h: Math.min(room, H * 0.2) }, { maxPx: clamp(Math.round(hl.px * 0.5), 14, 36), minPx: body.minLegiblePx || 14, maxLines: 3 }, 'center', 'body'); y += b.h + gap; }
+      if (room >= 2 * 14 * 1.25) { const b = setText(body, { x: px, y, w: contentW, h: Math.min(room, H * 0.2) }, { maxPx: clamp(Math.round(hl.px * sys.scale.body), 14, 36), minPx: body.minLegiblePx || 14, maxLines: 3 }, al, 'body'); y += b.h + gap; }
       else dropIf(body, 'no room');
     } else dropIf(body, 'no room');
     const leftover = ctaY - gap - y;
     if (visual && leftover >= Math.max(60, H * 0.15)) setVisual({ x: px, y, w: contentW, h: leftover });
     else dropIf(visual, 'no room');
-    lf.place(px, legalY, 'center', contentW);
+    lf.place(px, legalY, al, contentW);
   } else {
-    // ---------- Compact / wide: stacked hierarchy, visual on the right when there is room ----------
+    // ---------- Compact / wide: stacked hierarchy, visual beside the text when there is room ----------
     template = 'Rebuilt as stacked hierarchy';
-    const gap = clamp(Math.round(H * 0.03), 8, 24), hGap = clamp(Math.round(W * 0.02), 8, 24);
+    const hlMax = clamp(Math.round(H * 0.13), 24, 120);
+    const gap = rhythm(hlMax * 0.8), hGap = clamp(Math.round(W * 0.02), 8, 24);
     const hasVisual = !!visual && W > 480;
     const visualW = hasVisual ? Math.round(W * 0.3) : 0;
     const textW = contentW - (hasVisual ? visualW + hGap : 0);
+    // the visual sits opposite the text's anchor edge; text stays flush with the master's alignment
+    const textX = hasVisual && al === 'right' ? px + visualW + hGap : px;
     const lf = legalFit(contentW, H * 0.3, H >= 400 ? 3 : 2);
     if (!lf) return BLOCK;
     const legalY = H - padB - lf.h;
-    const ctaPx = clamp(Math.round(H * 0.07), 16, 40);
+    const ctaPx = clamp(Math.round(hlMax * sys.scale.cta), 16, 40);
     const ctaBefore = ops.length;
-    const ctaD = setCta({ x: px, y: 0, w: textW, h: H * 0.2 }, { maxPx: ctaPx, minPx: cta?.minLegiblePx || 16, maxLines: 1 }, 'left');
+    const ctaD = setCta({ x: textX, y: 0, w: textW, h: H * 0.2 }, { maxPx: ctaPx, minPx: cta?.minLegiblePx || 16, maxLines: 1 }, al);
     const ctaY = legalY - (ctaD.h ? gap + ctaD.h : 0);
     for (let i = ctaBefore; i < ops.length; i++) { const o = ops[i]; if (o.kind === 'pill') o.y = ctaY; else if (o.kind === 'text') o.y += ctaY; }
     if (ctaD.h) { const kr = keepRects[keepRects.length - 1]; if (kr.type === 'cta') kr.y = ctaY; }
     let y = padT;
-    const lg = setLogo({ x: px, y, w: textW * 0.5, h: clamp(H * 0.12, 20, 80) }, 'left');
+    const lg = setLogo({ x: textX, y, w: textW, h: clamp(H * 0.12, 20, 80) }, logoAlign(false));
     if (lg.h) y += lg.h + gap;
-    const hl = setText(headline, { x: px, y, w: textW, h: Math.max(24, ctaY - gap - y) }, { maxPx: clamp(Math.round(H * 0.13), 24, 120), minPx: headline?.minLegiblePx || 24, maxLines: 3 }, 'left', 'headline');
-    if (hl.h) y += hl.h + gap;
+    const hl = setText(headline, { x: textX, y, w: textW, h: Math.max(24, ctaY - gap - y) }, { maxPx: hlMax, minPx: headline?.minLegiblePx || 24, maxLines: 3 }, al, 'headline');
+    if (hl.h) y += hl.h + rhythm(hl.px);
     if (body?.text) {
       const room = ctaY - gap - y;
-      if (room >= 2 * 14 * 1.25) { const b = setText(body, { x: px, y, w: textW, h: room }, { maxPx: clamp(Math.round(hl.px * 0.5), 14, 36), minPx: body.minLegiblePx || 14, maxLines: 3 }, 'left', 'body'); y += b.h + gap; }
+      if (room >= 2 * 14 * 1.25) { const b = setText(body, { x: textX, y, w: textW, h: room }, { maxPx: clamp(Math.round(hl.px * sys.scale.body), 14, 36), minPx: body.minLegiblePx || 14, maxLines: 3 }, al, 'body'); y += b.h + gap; }
       else dropIf(body, 'no room');
     } else dropIf(body, 'no room');
-    if (hasVisual) setVisual({ x: px + textW + hGap, y: padT, w: visualW, h: Math.max(20, legalY - gap - padT) });
+    if (hasVisual) setVisual({ x: al === 'right' ? px : px + textW + hGap, y: padT, w: visualW, h: Math.max(20, legalY - gap - padT) });
     else dropIf(visual, W > 480 ? 'no room' : 'compact size');
-    lf.place(px, legalY, 'left', contentW);
+    lf.place(textX, legalY, al, hasVisual ? textW : contentW);
   }
 
   const summary = `${template}: ${changes.join(', ')}.`;

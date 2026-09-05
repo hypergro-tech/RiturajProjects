@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { analyzeBackground, analyzeLayout, describeLayout, findComponents, groupRunsIntoBlocks, mergeClassification, shortFormOf } from '../layout';
+import { demoModel } from '../demoData';
+import { analyzeBackground, analyzeLayout, deriveLayoutSystem, describeLayout, findComponents, groupRunsIntoBlocks, mergeClassification, shortFormOf } from '../layout';
 import type { PixelSampler, TextRun } from '../types';
 
 const RW = 1000, RH = 1000;
@@ -138,6 +139,26 @@ describe('heuristicModel() via analyzeLayout()', () => {
     const merged = mergeClassification(a, { T0: { type: 'banana' as never, mustKeep: 'yes' as never } }, RW, RH);
     expect(merged.elements![0].type).toBe('headline');
     expect(merged.elements![0].mustKeep).toBe(true);
+  });
+});
+
+describe('deriveLayoutSystem()', () => {
+  it('reads alignment, type ratios, rhythm and the logo corner off the master', () => {
+    const model = demoModel(2000, '#004bbe');
+    const sys = deriveLayoutSystem(model, 2000, 2000);
+    expect(sys.align).toBe('left');
+    expect(sys.logoCorner).toBe('tl');
+    // demo: headline 56, body 30, cta 27, legal 30 (all × 2000/1080) → ratios vs the headline
+    expect(sys.scale.body).toBeCloseTo(30 / 56, 2);
+    expect(sys.scale.cta).toBeCloseTo(27 / 56, 2);
+    expect(sys.scale.legal).toBeCloseTo(30 / 56, 2);
+    // body starts at 45% of the height, headline ends at 41%: 0.04 × 2000 px ÷ 103.7 px headline
+    expect(sys.gapEm).toBeCloseTo((0.04 * 2000) / (56 * 2000 / 1080), 1);
+    expect(sys.inset).toEqual({ x: 0.1, y: 0.105 });
+  });
+  it('falls back to sensible defaults with no headline', () => {
+    const sys = deriveLayoutSystem({ elements: [], background: { desc: '', extendable: true, extendDirections: [], complexity: 'simple', color: '#fff' }, regulated: true, detectedRegulated: false, notes: '' }, 1000, 1000);
+    expect(sys).toMatchObject({ align: 'left', gapEm: 0.6, logoCorner: 'tl', scale: { body: 0.42, cta: 0.45 } });
   });
 });
 

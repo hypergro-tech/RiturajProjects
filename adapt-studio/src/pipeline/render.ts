@@ -1,4 +1,4 @@
-import { fontString } from './fonts';
+import { fontString, setTracking } from './fonts';
 import type { AdaptPlan, MasterRaster } from './types';
 
 /** Draw a plan onto a fresh W×H canvas. The only place in the pipeline that touches output pixels. */
@@ -41,12 +41,14 @@ export function renderPlan(master: MasterRaster, plan: AdaptPlan, W: number, H: 
           ctx.beginPath(); ctx.roundRect(o.x, o.y, o.w, o.h, Math.min(o.w, o.h) / 2); ctx.fill();
         } else {
           ctx.font = fontString(o.spec, o.px);
+          setTracking(ctx, o.spec.letterSpacing * o.px);
           ctx.fillStyle = o.spec.color;
           ctx.textBaseline = 'top';
-          ctx.textAlign = o.align === 'center' ? 'center' : 'left';
+          ctx.textAlign = o.align;
           const lh = o.px * o.spec.lineHeight;
-          const x = o.align === 'center' ? o.x + o.w / 2 : o.x;
+          const x = o.align === 'center' ? o.x + o.w / 2 : o.align === 'right' ? o.x + o.w : o.x;
           o.lines.forEach((line, i) => ctx.fillText(line, x, o.y + i * lh + (lh - o.px) / 2));
+          setTracking(ctx, 0);
           ctx.textAlign = 'left';
           ctx.textBaseline = 'alphabetic';
         }

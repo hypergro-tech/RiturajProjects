@@ -1,6 +1,43 @@
 import { relativeLuminance } from './model';
-import { isFilledShape, sampleTextColors } from './text';
-import type { Box, Complexity, Direction, PixelSampler, RawElement, RawObjectModel, TextRun } from './types';
+import { isFilledShape, joinRuns, sampleTextColors } from './text';
+import type { Box, Complexity, Direction, ElementType, LayoutSystem, ObjectModel, PixelSampler, RawElement, RawObjectModel, TextRun } from './types';
+
+const clampNum = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
+
+/**
+ * Read the master's own layout system off the tagged elements so rebuilt sizes keep its voice:
+ * text alignment, type-scale ratios against the headline, the vertical rhythm between blocks, where
+ * the logo lives, and how far content sits from the edges.
+ */
+export function deriveLayoutSystem(model: ObjectModel, _rw: number, rh: number): LayoutSystem {
+  const find = (t: ElementType) => model.elements.find((e) => e.type === t);
+  const hl = find('headline');
+  const H = hl?.fontPx || 0;
+  const ratio = (t: ElementType, def: number) => {
+    const e = find(t);
+    return e && e.fontPx > 0 && H > 0 ? clampNum(e.fontPx / H, 0.2, 1) : def;
+  };
+  let gapEm = 0.6;
+  if (hl && H > 0) {
+    const bottom = hl.box.y + hl.box.h;
+    const below = model.elements
+      .filter((e) => e !== hl && e.fontPx > 0 && e.box.y >= bottom - 0.005)
+      .sort((a, b) => a.box.y - b.box.y)[0];
+    if (below) gapEm = clampNum(((below.box.y - bottom) * rh) / H, 0.25, 1.4);
+  }
+  const logo = find('logo');
+  const logoCorner: LayoutSystem['logoCorner'] = logo
+    ? `${logo.box.y + logo.box.h / 2 < 0.5 ? 't' : 'b'}${logo.box.x + logo.box.w / 2 < 0.5 ? 'l' : 'r'}` as LayoutSystem['logoCorner']
+    : 'tl';
+  const xs = model.elements.map((e) => e.box.x), ys = model.elements.map((e) => e.box.y);
+  return {
+    align: hl?.text?.align ?? 'left',
+    scale: { subhead: ratio('subhead', 0.5), body: ratio('body', 0.42), cta: ratio('cta', 0.45), legal: ratio('legal', 0.3) },
+    gapEm: Math.round(gapEm * 100) / 100,
+    logoCorner,
+    inset: { x: xs.length ? clampNum(Math.min(...xs), 0, 0.3) : 0.08, y: ys.length ? clampNum(Math.min(...ys), 0, 0.3) : 0.08 },
+  };
+}
 
 /**
  * Stage 1 without a vision model: everything that can be read deterministically from a PDF-compatible
@@ -60,7 +97,7 @@ function mkLine(runs: TextRun[]): Line {
   return { x0, y0, x1, y1, fontPx: sizes[Math.floor(sizes.length / 2)], fontName, runs };
 }
 
-const lineText = (l: Line) => l.runs.map((r) => r.str.trim()).join(' ').replace(/\s+/g, ' ').trim();
+const lineText = (l: Line) => joinRuns(l.runs, l.fontPx).text;
 
 /** Group PDF text runs into paragraph-like blocks: consecutive lines of similar size, close together, overlapping horizontally. */
 export function groupRunsIntoBlocks(runs: TextRun[]): TextBlock[] {

@@ -88,9 +88,23 @@ export function normalizeModel(raw: RawObjectModel, masterRh: number, bgColor: s
  * the text as whichever extreme (p03 / p97) sits on the other side of it, so a CTA's navy-on-orange
  * pill is measured against the pill, not against the page behind it.
  */
+export function lumOfHex(h: string): number {
+  const m = /^#?([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(h);
+  if (!m) return 0;
+  return relativeLuminance(parseInt(m[1], 16), parseInt(m[2], 16), parseInt(m[3], 16));
+}
+
+/** WCAG contrast ratio between two hex colours. */
+export function contrastOfHex(a: string, b: string): number {
+  const la = lumOfHex(a) + 0.05, lb = lumOfHex(b) + 0.05;
+  return Math.max(la, lb) / Math.min(la, lb);
+}
+
 export function measureContrast(model: ObjectModel, sample: PixelSampler, rw: number, rh: number): ObjectModel {
   const elements = model.elements.map((e) => {
     if (!e.fontPx) return { ...e, contrast: 0 };
+    // Re-set text is drawn in known colours: judge those, not the master's anti-aliased edges.
+    if (e.text) return { ...e, contrast: contrastOfHex(e.text.color, e.text.bgColor || model.background.color) };
     const padX = e.box.w * rw * 0.04, padY = e.box.h * rh * 0.04;
     const x = Math.max(0, Math.round(e.box.x * rw - padX));
     const y = Math.max(0, Math.round(e.box.y * rh - padY));
@@ -103,7 +117,7 @@ export function measureContrast(model: ObjectModel, sample: PixelSampler, rw: nu
       if (!ls.length) return { ...e, contrast: 0 };
       ls.sort((a, b) => a - b);
       const at = (q: number) => ls[Math.min(ls.length - 1, Math.floor(ls.length * q))];
-      const lo = at(0.03), bg = at(0.5), hi = at(0.97);
+      const lo = at(0.005), bg = at(0.5), hi = at(0.995);
       const contrast = Math.max((hi + 0.05) / (bg + 0.05), (bg + 0.05) / (lo + 0.05));
       return { ...e, contrast };
     } catch {

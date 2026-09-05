@@ -23,6 +23,10 @@ export interface TextSpec {
   /** Fill behind the text when it sits on its own shape (a CTA pill); '' when it sits on the page. */
   bgColor: string;
   lineHeight: number;
+  /** Tracking in em (0 = normal), read from the master's glyph spacing. */
+  letterSpacing: number;
+  /** How the master sets this block. */
+  align: 'left' | 'center' | 'right';
   /** Where the text content came from. */
   source: 'pdf' | 'vision' | 'demo';
   /** Where the font came from: the PDF's embedded face, a loaded web font, or the brand fallback. */
@@ -100,13 +104,29 @@ export interface Mask { x: number; y: number; w: number; h: number }
 /** drawImage(source rect in master px → dest rect in output px). */
 export interface DrawOp { kind: 'patch'; sx: number; sy: number; sw: number; sh: number; dx: number; dy: number; dw: number; dh: number }
 /** Re-set text: wrapped lines drawn top-down from (x, y) at `px` with the spec's font. */
-export interface TextOp { kind: 'text'; spec: TextSpec; lines: string[]; x: number; y: number; px: number; align: 'left' | 'center'; w: number }
+export interface TextOp { kind: 'text'; spec: TextSpec; lines: string[]; x: number; y: number; px: number; align: 'left' | 'center' | 'right'; w: number }
 /** Filled rounded rectangle (a CTA pill). */
 export interface ShapeOp { kind: 'pill'; x: number; y: number; w: number; h: number; fill: string }
 export type LayoutOp = DrawOp | TextOp | ShapeOp;
 
 /** Text measurer injected into the planner: width in px of `text` set in `spec` at `px`. */
-export type TextMeasurer = (spec: Pick<TextSpec, 'family' | 'weight' | 'italic'>, px: number, text: string) => number;
+export type TextMeasurer = (spec: Pick<TextSpec, 'family' | 'weight' | 'italic'> & { letterSpacing?: number }, px: number, text: string) => number;
+
+/**
+ * The master's own layout system, read from its elements: rebuilt sizes follow it instead of sizing
+ * each element in isolation. Ratios are relative to the headline size.
+ */
+export interface LayoutSystem {
+  align: 'left' | 'center' | 'right';
+  /** Font-size ratios vs the headline (headline = 1). */
+  scale: { subhead: number; body: number; cta: number; legal: number };
+  /** Vertical rhythm between stacked blocks, in em of the headline size. */
+  gapEm: number;
+  /** Where the logo sits in the master. */
+  logoCorner: 'tl' | 'tr' | 'bl' | 'br';
+  /** Content inset from the master's edges as a fraction of its width / height. */
+  inset: { x: number; y: number };
+}
 
 /** A text run extracted from the PDF (viewport px), before grouping into elements. */
 export interface TextRun { str: string; x: number; y: number; w: number; h: number; fontPx: number; fontName: string; hasEOL: boolean }

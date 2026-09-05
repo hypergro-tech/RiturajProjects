@@ -1,0 +1,22 @@
+services:
+  adapt-studio:
+    build: .
+    image: adapt-studio:local
+    ports:
+      - "${PORT:-8787}:8787"
+    env_file:
+      - .env
+    environment:
+      - NODE_ENV=production
+      - PORT=8787
+      # --- Claude on Vertex AI: put the service-account key at ./secrets/sa.json (gitignored),
+      #     set CLAUDE_PROVIDER=vertex in .env, and uncomment the two lines below. ---
+      # - GOOGLE_APPLICATION_CREDENTIALS=/secrets/sa.json
+    # volumes:
+    #   - ./secrets/sa.json:/secrets/sa.json:ro
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:8787/api/health').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3

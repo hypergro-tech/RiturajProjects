@@ -68,6 +68,8 @@ if (process.env.NODE_ENV === 'production' && fs.existsSync(dist)) {
   app.use(express.static(dist, { maxAge: '1h', index: false }));
   app.use((req: Request, res: Response) => {
     if (req.path.startsWith('/api/')) { res.status(404).json({ error: 'not found' }); return; }
+    // SPA fallback only for page navigations; a missing asset (anything with a file extension) is a real 404.
+    if (path.extname(req.path)) { res.status(404).type('text').send('not found'); return; }
     res.sendFile(path.join(dist, 'index.html'));
   });
 } else {

@@ -23,10 +23,11 @@ dist-ssr
 *.sln
 *.sw?
 
-# Local env
+# Local env and credentials
 .env
 .env.*
 !.env.example
+secrets/
 
 # Build output
 dist-server

@@ -57,7 +57,7 @@ export function resolveFont(type: ElementType, pdfFont: FontInfo | null, fontAva
   };
 }
 
-export interface GroupedText { text: string; fontName: string; fontPx: number }
+export interface GroupedText { text: string; fontName: string; fontPx: number; /** union of the runs, master px */ bounds: { x: number; y: number; w: number; h: number } }
 
 /**
  * Assign PDF text runs to the vision elements whose (slightly padded) box contains the run centre, then
@@ -65,19 +65,30 @@ export interface GroupedText { text: string; fontName: string; fontPx: number }
  */
 export function groupRunsIntoElements(runs: TextRun[], elements: TaggedElement[], rw: number, rh: number): Map<number, GroupedText> {
   const out = new Map<number, GroupedText>();
-  const taken = new Set<number>();
-  elements.forEach((e, i) => {
-    if (!e.fontPx) return;
-    const padX = e.box.w * rw * 0.06, padY = e.box.h * rh * 0.06;
-    const x0 = e.box.x * rw - padX, y0 = e.box.y * rh - padY;
-    const x1 = (e.box.x + e.box.w) * rw + padX, y1 = (e.box.y + e.box.h) * rh + padY;
-    const mine: TextRun[] = [];
-    runs.forEach((r, ri) => {
-      if (taken.has(ri) || !r.str.trim()) return;
-      const cx = r.x + r.w / 2, cy = r.y + r.h / 2;
-      if (cx >= x0 && cx <= x1 && cy >= y0 && cy <= y1) { mine.push(r); taken.add(ri); }
+  // Each run goes to the text element it overlaps most (estimated boxes drift by a few percent); a run
+  // with no overlap still counts when its centre sits within 6% of a box.
+  const buckets = new Map<number, TextRun[]>();
+  for (const r of runs) {
+    if (!r.str.trim()) continue;
+    let best = -1, bestScore = 0;
+    elements.forEach((e, i) => {
+      if (!e.fontPx) return;
+      const bx = e.box.x * rw, by = e.box.y * rh, bw = e.box.w * rw, bh = e.box.h * rh;
+      const ix = Math.max(0, Math.min(r.x + r.w, bx + bw) - Math.max(r.x, bx));
+      const iy = Math.max(0, Math.min(r.y + r.h, by + bh) - Math.max(r.y, by));
+      let score = (ix * iy) / Math.max(1, r.w * r.h);
+      if (score === 0) {
+        const cx = r.x + r.w / 2, cy = r.y + r.h / 2;
+        const padX = bw * 0.06, padY = bh * 0.06;
+        if (cx >= bx - padX && cx <= bx + bw + padX && cy >= by - padY && cy <= by + bh + padY) score = 0.01;
+      }
+      if (score > bestScore) { bestScore = score; best = i; }
     });
-    if (!mine.length) return;
+    if (best >= 0) { const b = buckets.get(best) ?? []; b.push(r); buckets.set(best, b); }
+  }
+  elements.forEach((_e, i) => {
+    const mine = buckets.get(i);
+    if (!mine?.length) return;
     mine.sort((a, b) => (Math.abs(a.y - b.y) > Math.min(a.h, b.h) * 0.5 ? a.y - b.y : a.x - b.x));
     const lines: string[] = [];
     let cur: string[] = [], lineY = mine[0].y, lineH = mine[0].h, prev: TextRun | null = null;
@@ -94,7 +105,9 @@ export function groupRunsIntoElements(runs: TextRun[], elements: TaggedElement[]
     for (const r of mine) byFont.set(r.fontName, (byFont.get(r.fontName) ?? 0) + r.str.length);
     const fontName = [...byFont.entries()].sort((a, b) => b[1] - a[1])[0][0];
     const sizes = mine.map((r) => r.fontPx).sort((a, b) => a - b);
-    out.set(i, { text, fontName, fontPx: sizes[Math.floor(sizes.length / 2)] });
+    const bx = Math.min(...mine.map((r) => r.x)), by = Math.min(...mine.map((r) => r.y));
+    const bounds = { x: bx, y: by, w: Math.max(...mine.map((r) => r.x + r.w)) - bx, h: Math.max(...mine.map((r) => r.y + r.h)) - by };
+    out.set(i, { text, fontName, fontPx: sizes[Math.floor(sizes.length / 2)], bounds });
   });
   return out;
 }
@@ -157,7 +170,10 @@ export function attachTextSpecs(model: ObjectModel, input: AttachInput): ObjectM
     if (!content) return e;
     const pdfFont = g ? input.fonts?.get(g.fontName) ?? { name: g.fontName, loadedName: g.fontName } : null;
     const font = resolveFont(e.type, pdfFont, input.fontAvailable);
-    const { fg, bg } = sampleTextColors(input.sample, e.box, input.rw, input.rh);
+    // The text layer knows exactly where the glyphs are: tighten the model's estimated box to the runs
+    // (2% breathing room) so patches, contrast sampling and keep-rects use real geometry.
+    const box = g ? tightenBox(g.bounds, input.rw, input.rh) : e.box;
+    const { fg, bg } = sampleTextColors(input.sample, box, input.rw, input.rh);
     const bgColor = e.type === 'cta' && isFilledShape(bg, model.background.color) ? bg : '';
     const text: TextSpec = {
       content, shortForm: e.visionShortForm,
@@ -167,9 +183,16 @@ export function attachTextSpecs(model: ObjectModel, input: AttachInput): ObjectM
       source: g ? 'pdf' : 'vision',
       fontSource: font.fontSource, fontLabel: font.fontLabel,
     };
-    return { ...e, text, fontPx: g ? g.fontPx : e.fontPx };
+    return { ...e, text, box, fontPx: g ? g.fontPx : e.fontPx };
   });
   return { ...model, elements };
+}
+
+function tightenBox(b: { x: number; y: number; w: number; h: number }, rw: number, rh: number): Box {
+  const px = Math.max(1, b.w * 0.02), py = Math.max(1, b.h * 0.02);
+  const x0 = Math.max(0, b.x - px), y0 = Math.max(0, b.y - py);
+  const x1 = Math.min(rw, b.x + b.w + px), y1 = Math.min(rh, b.y + b.h + py);
+  return { x: x0 / rw, y: y0 / rh, w: Math.max(0.01, (x1 - x0) / rw), h: Math.max(0.01, (y1 - y0) / rh) };
 }
 
 /** Rough width estimate used in tests and as a fallback when no canvas is available. */

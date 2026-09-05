@@ -98,6 +98,12 @@ describe('attachTextSpecs()', () => {
     expect(hl.shortForm).toBe('Dreams');
     expect(hl.color).toBe('#ffffff');
     expect(out.elements[0].fontPx).toBe(52); // exact size from the PDF replaces the estimate
+    // the model's estimated box is replaced by the runs' real bounds (+2% breathing room)
+    const b = out.elements[0].box;
+    expect(b.x).toBeCloseTo((100 - 10) / 1000, 3);
+    expect(b.y).toBeCloseTo((300 - 2.496) / 1000, 3);
+    expect(b.w).toBeCloseTo((500 + 20) / 1000, 3);
+    expect(out.elements[2].box).toEqual(model.elements[2].box); // no runs: box untouched
     expect(out.elements[1].text).toBeUndefined(); // legal: no runs, no transcription
     expect(out.elements[2].text).toMatchObject({ content: 'Apply now', source: 'vision', fontSource: 'fallback', family: 'Lato' });
     expect(out.elements[3].text).toBeUndefined(); // logo is not text

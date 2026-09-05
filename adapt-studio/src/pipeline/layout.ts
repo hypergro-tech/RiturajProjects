@@ -198,6 +198,7 @@ export function heuristicModel(blocks: TextBlock[], components: Component[], bac
   const sorted = [...blocks].sort((a, b) => b.fontPx - a.fontPx || a.y - b.y);
   const headline = sorted[0];
   let logoTaken = false;
+  const filledBlocks = new Set<TextBlock>();
 
   for (const b of blocks) {
     const text = b.lines.join('\n');
@@ -205,6 +206,7 @@ export function heuristicModel(blocks: TextBlock[], components: Component[], bac
     const n = words(text);
     const colors = sampleTextColors(sample, box, rw, rh);
     const filled = isFilledShape(colors.bg, bgHex);
+    if (filled) filledBlocks.add(b);
     const short = n <= 4 && b.fontPx < headline.fontPx;
     let type: string;
     if (b === headline) type = 'headline';
@@ -223,7 +225,12 @@ export function heuristicModel(blocks: TextBlock[], components: Component[], bac
     });
   }
 
-  const candidates = components.filter((c) => !blocks.some((b) => overlap(c, b) > 0.6 * c.w * c.h));
+  // Artwork that is really a text block's own shape (a CTA pill, a label tab) is not a separate element.
+  const isOwnShape = (c: Component) => c.area < rw * rh * 0.08 && [...filledBlocks].some((b) => {
+    const cx = b.x + b.w / 2, cy = b.y + b.h / 2;
+    return cx >= c.x && cx <= c.x + c.w && cy >= c.y && cy <= c.y + c.h;
+  });
+  const candidates = components.filter((c) => !isOwnShape(c) && !blocks.some((b) => overlap(c, b) > 0.6 * c.w * c.h));
   if (!logoTaken) {
     const logos = candidates.filter(isLogoCandidate(rw, rh)).sort((a, b) => cornerDistance(a, rw, rh) - cornerDistance(b, rw, rh));
     if (logos.length) {

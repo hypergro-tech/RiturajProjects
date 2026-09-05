@@ -103,6 +103,12 @@ describe('heuristicModel() via analyzeLayout()', () => {
     expect(byType.logo?.box?.x).toBeGreaterThan(0.6);
     expect(byType.product?.box?.w).toBeGreaterThan(0.25);
   });
+  it('does not turn the CTA pill into a separate decorative element', () => {
+    const cta = byType.cta!.box!;
+    const cx = cta.x! + cta.w! / 2, cy = cta.y! + cta.h! / 2;
+    const wraps = a.model.elements!.filter((e) => e.type !== 'cta' && e.box && cx >= e.box.x! && cx <= e.box.x! + e.box.w! && cy >= e.box.y! && cy <= e.box.y! + e.box.h!);
+    expect(wraps).toEqual([]);
+  });
   it('describes the layout for a text-only model with stable ids', () => {
     const d = describeLayout(a, RW, RH);
     expect(d).toContain('T0: at x 10% y 20%');

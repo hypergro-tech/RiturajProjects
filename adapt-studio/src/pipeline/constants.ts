@@ -28,9 +28,24 @@ export const ROUTER = { scaleBelow: 0.14, cropBelow: 0.45, expandBelow: 0.9, ski
 /** Stage 6 file-weight limits (bytes). */
 export const WEIGHT_LIMIT = { display: 150 * 1024, social: 5 * 1024 * 1024 } as const;
 
+/** Brand book p.20: the wordmark must never render below 20px tall on digital. */
+export const LOGO_MIN_HEIGHT_PX = 20;
+
 export const BLOCK_MESSAGE = 'This size cannot carry the mandatory disclaimer legibly. Requires manual layout or size exclusion.';
 
 export const CUSTOM_SIZE_LIMITS = { min: 50, max: 4000 } as const;
 
 /** Working preview long edge (Stage 0). */
 export const WORKING_EDGE = 2000;
+
+/** Brand faces (brand book p.40–43) used when the master's own font cannot be reproduced. */
+export const BRAND_FONTS = {
+  headline: { family: 'Merriweather', weight: 600, italic: false },
+  subhead: { family: 'Lato', weight: 700, italic: false },
+  body: { family: 'Lato', weight: 400, italic: false },
+  cta: { family: 'Lato', weight: 700, italic: false },
+  legal: { family: 'Lato', weight: 400, italic: false },
+} as const;
+
+/** Web fonts loaded by index.html and therefore drawable on canvas. */
+export const WEB_FONTS: ReadonlySet<string> = new Set(['Figtree', 'Merriweather', 'Lato']);

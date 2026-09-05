@@ -59,6 +59,8 @@ export function normalizeModel(raw: RawObjectModel, masterRh: number, bgColor: s
       minLegiblePx: isText ? Number(e.minLegiblePx) || DEFAULT_MIN_PX[type] || 14 : 0,
       fontPx: isText ? deriveFontPx(box.h * masterRh, e.lines) : 0,
       contrast: 0,
+      visionText: isText ? String(e.text ?? '').replace(/\s+/g, ' ').trim().slice(0, 600) : '',
+      visionShortForm: type === 'headline' || type === 'cta' ? String(e.shortForm ?? '').trim().slice(0, 80) : '',
     };
   });
   const bg = raw.background ?? {};

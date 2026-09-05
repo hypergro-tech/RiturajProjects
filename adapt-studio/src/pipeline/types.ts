@@ -8,6 +8,29 @@ export type Strategy = 'SCALE' | 'SMART_CROP' | 'EXPAND' | 'RECOMPOSE';
 /** Box as fractions of the canvas (0..1). */
 export interface Box { x: number; y: number; w: number; h: number }
 
+/** Everything needed to re-set a text element at any size instead of scaling its pixels. */
+export interface TextSpec {
+  /** Full text; explicit line breaks are honoured. */
+  content: string;
+  /** ≤ 4-word variant for headline / CTA under space pressure ('' when none). */
+  shortForm: string;
+  /** CSS font-family to draw with (an embedded pdf.js face, a web font, or a brand fallback). */
+  family: string;
+  weight: number;
+  italic: boolean;
+  /** Text colour, sampled from the master raster (#rrggbb). */
+  color: string;
+  /** Fill behind the text when it sits on its own shape (a CTA pill); '' when it sits on the page. */
+  bgColor: string;
+  lineHeight: number;
+  /** Where the text content came from. */
+  source: 'pdf' | 'vision' | 'demo';
+  /** Where the font came from: the PDF's embedded face, a loaded web font, or the brand fallback. */
+  fontSource: 'embedded' | 'web' | 'fallback';
+  /** Human label for the change summary, e.g. "Lato Bold (embedded)". */
+  fontLabel: string;
+}
+
 export interface TaggedElement {
   type: ElementType;
   desc: string;
@@ -21,6 +44,12 @@ export interface TaggedElement {
   fontPx: number;
   /** Measured contrast ratio on the master raster (0 = not measured / non-text). */
   contrast: number;
+  /** Verbatim text read by the vision model ('' for non-text or unreadable). */
+  visionText: string;
+  /** ≤ 4-word variant proposed by the vision model for headline / CTA. */
+  visionShortForm: string;
+  /** Present once text has been attached; recompose re-sets it instead of scaling pixels. */
+  text?: TextSpec;
 }
 
 export interface Background {
@@ -52,6 +81,7 @@ export interface RawObjectModel {
 export interface RawElement {
   type?: string; desc?: string; box?: Partial<Box>;
   mustKeep?: boolean; droppable?: boolean; minLegiblePx?: number; lines?: number;
+  text?: string; shortForm?: string;
 }
 export interface RawBackground { desc: string; extendable: boolean; extendDirections: string[]; complexity: string; color: string }
 
@@ -68,7 +98,18 @@ export interface KeepRect { type: ElementType; fontPx: number; min: number; x: n
 /** Region of generated / extended pixels in output px (review mask). */
 export interface Mask { x: number; y: number; w: number; h: number }
 /** drawImage(source rect in master px → dest rect in output px). */
-export interface DrawOp { sx: number; sy: number; sw: number; sh: number; dx: number; dy: number; dw: number; dh: number }
+export interface DrawOp { kind: 'patch'; sx: number; sy: number; sw: number; sh: number; dx: number; dy: number; dw: number; dh: number }
+/** Re-set text: wrapped lines drawn top-down from (x, y) at `px` with the spec's font. */
+export interface TextOp { kind: 'text'; spec: TextSpec; lines: string[]; x: number; y: number; px: number; align: 'left' | 'center'; w: number }
+/** Filled rounded rectangle (a CTA pill). */
+export interface ShapeOp { kind: 'pill'; x: number; y: number; w: number; h: number; fill: string }
+export type LayoutOp = DrawOp | TextOp | ShapeOp;
+
+/** Text measurer injected into the planner: width in px of `text` set in `spec` at `px`. */
+export type TextMeasurer = (spec: Pick<TextSpec, 'family' | 'weight' | 'italic'>, px: number, text: string) => number;
+
+/** A text run extracted from the PDF (viewport px), before grouping into elements. */
+export interface TextRun { str: string; x: number; y: number; w: number; h: number; fontPx: number; fontName: string; hasEOL: boolean }
 
 export interface RouteResult { strategy: Strategy; delta: number; skinny: boolean }
 
@@ -76,11 +117,21 @@ interface PlanBase { keepRects: KeepRect[]; masks: Mask[]; summary: string }
 export interface ScalePlan extends PlanBase { kind: 'SCALE'; s: number; ox: number; oy: number }
 export interface CropPlan extends PlanBase { kind: 'SMART_CROP'; wx: number; wy: number; winW: number; winH: number; sc: number }
 export interface ExpandPlan extends PlanBase { kind: 'EXPAND'; s: number; mx: number; my: number; mw: number; mh: number }
-export interface RecomposePlan extends PlanBase { kind: 'RECOMPOSE'; ops: DrawOp[]; dropped: ElementType[] }
+export interface RecomposePlan extends PlanBase {
+  kind: 'RECOMPOSE';
+  ops: LayoutOp[];
+  dropped: ElementType[];
+  /** What changed versus the master, for the result card ("headline re-set in 2 lines at 26px", …). */
+  changes: string[];
+  /** Fit problems the gates will surface (element placed at its floor but overflowing). */
+  overflows: string[];
+}
 export interface BlockedPlan { kind: 'BLOCKED'; blockMsg: string }
 export type AdaptPlan = ScalePlan | CropPlan | ExpandPlan | RecomposePlan;
 
 export interface PlanResult { plan: AdaptPlan | BlockedPlan; escalations: string[]; routed: RouteResult; margins: Margins }
+
+export interface PlanOptions { measure: TextMeasurer }
 
 export interface Gate { label: string; pass: boolean }
 
@@ -92,6 +143,8 @@ export type StatusKind = 'clean' | 'review' | 'blocked-compliance' | 'blocked-qa
 export interface AdaptResult {
   W: number; H: number; name: string; dims: string; social: boolean;
   url: string; fmt: 'PNG' | 'JPG'; kb: number;
+  /** The encoded file, kept for "Download all" zipping (null when blocked). */
+  blob: Blob | null;
   strategy: Strategy;
   blocked: boolean; blockMsg: string;
   status: StatusKind; statusLabel: string;

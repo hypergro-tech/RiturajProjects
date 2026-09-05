@@ -1,13 +1,17 @@
+import { zipSync } from 'fflate';
+import type { PDFDocumentProxy } from 'pdfjs-dist';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { CUSTOM_SIZE_LIMITS, DEFAULT_SIZES, WORKING_EDGE } from '../pipeline/constants';
 import { computeAdapt } from '../pipeline/adapt';
+import { CUSTOM_SIZE_LIMITS, DEFAULT_SIZES, WORKING_EDGE } from '../pipeline/constants';
 import { drawDemoMaster, loadDemoImages, type DemoImages } from '../pipeline/demo';
-import { demoModel } from '../pipeline/demoData';
-import { canvasSampler, makePreviewUrl, rasterizeKeyVisual } from '../pipeline/ingest';
+import { applyDemoText, demoModel } from '../pipeline/demoData';
+import { ensureFonts, fontAvailable } from '../pipeline/fonts';
+import { artboardThumbs, canvasSampler, makePreviewUrl, openKeyVisual, renderArtboard } from '../pipeline/ingest';
 import { measureContrast, normalizeModel, sampleBgColor } from '../pipeline/model';
 import { route } from '../pipeline/router';
+import { attachTextSpecs, type FontInfo } from '../pipeline/text';
 import { visionPass } from '../pipeline/vision';
-import type { AdaptResult, Box, MasterRaster, ObjectModel, TargetSize } from '../pipeline/types';
+import type { AdaptResult, Box, MasterRaster, ObjectModel, TargetSize, TextRun } from '../pipeline/types';
 import { INITIAL_STATE, type GenRow, type StudioState } from './types';
 
 const delay = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -15,67 +19,114 @@ const errMsg = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
 export const DEMO_FILE_NAME = 'FedOne_PersonalLoan_KV_1080.ai (demo)';
 
+interface RasterInput {
+  canvas: HTMLCanvasElement;
+  dimsLabel: string;
+  runs?: TextRun[];
+  fonts?: Map<string, FontInfo>;
+  demoBoxes?: Box[];
+  isDemo: boolean;
+}
+
 /**
- * Single state machine: upload → analyzing → analysis → sizes → generating → results.
- * The master canvas lives in a ref (non-serialisable); everything the UI renders is in state.
+ * Single state machine: upload → analyzing → (artboards) → analysis → sizes → generating → results.
+ * The master canvas and the open PDF live in refs (non-serialisable); everything the UI renders is in state.
  */
 export function useStudio() {
   const [state, setState] = useState<StudioState>(INITIAL_STATE);
   const masterRef = useRef<MasterRaster | null>(null);
+  const docRef = useRef<PDFDocumentProxy | null>(null);
   const urlsRef = useRef<string[]>([]);
   const imagesRef = useRef<Promise<DemoImages> | null>(null);
 
+  const patch = useCallback((p: Partial<StudioState>) => setState((s) => ({ ...s, ...p })), []);
+
   useEffect(() => {
     imagesRef.current = loadDemoImages();
-  }, []);
-
-  const patch = useCallback((p: Partial<StudioState>) => setState((s) => ({ ...s, ...p })), []);
+    fetch('/api/health')
+      .then((r) => r.json())
+      .then((j: { configured?: boolean; provider?: string }) => patch({ visionConfigured: !!j.configured, visionProvider: j.provider ?? '' }))
+      .catch(() => patch({ visionConfigured: null }));
+  }, [patch]);
 
   const allSizes = useMemo<TargetSize[]>(() => DEFAULT_SIZES.concat(state.customSizes), [state.customSizes]);
   const isSelected = useCallback((i: number) => (state.selected ? !!state.selected[i] : true), [state.selected]);
   const selectedCount = allSizes.filter((_, i) => isSelected(i)).length;
 
-  // ---------- Stage 0 + 1: ingest & analysis ----------
+  const closeDoc = () => { void docRef.current?.destroy(); docRef.current = null; };
+
+  // ---------- Stage 0 (rasterize) + Stage 1 (analysis) on one artboard ----------
+  const analyze = useCallback(async (input: RasterInput) => {
+    const { canvas, dimsLabel, isDemo } = input;
+    patch({ anStep: 1 });
+    const rw = canvas.width, rh = canvas.height, ratio = rw / rh;
+    const url = makePreviewUrl(canvas);
+    masterRef.current = { canvas, rw, rh, ratio };
+    patch({ anStep: 2, master: { dimsLabel, ratio, url } });
+
+    const sampler = canvasSampler(canvas);
+    const bg = sampleBgColor(sampler, rw, rh);
+    let model: ObjectModel;
+    let note = '';
+    try {
+      model = normalizeModel(await visionPass(canvas), rh, bg);
+      model = attachTextSpecs(model, { runs: input.runs, fonts: input.fonts, sample: sampler, rw, rh, fontAvailable });
+      if (isDemo) model = applyDemoText(model);
+    } catch (e) {
+      const msg = errMsg(e);
+      if (!isDemo) throw new Error(`Vision pass failed: ${msg}. The file parsed fine — retry in a moment (rate limit is 15 calls/min).`);
+      model = demoModel(rh, bg, input.demoBoxes);
+      note = `Vision pass unavailable (${msg}) — using the precomputed object model for the demo master.`;
+    }
+    model = measureContrast(model, sampler, rw, rh);
+    patch({ anStep: 4, analysisNote: note, model });
+    await delay(500);
+    patch({ stage: 'analysis', hover: -1 });
+  }, [patch]);
+
+  const fail = useCallback((e: unknown) => {
+    masterRef.current = null;
+    closeDoc();
+    patch({ stage: 'upload', uploadError: errMsg(e), master: null, model: null, artboards: [] });
+  }, [patch]);
+
   const ingest = useCallback(async (source: File | 'demo') => {
     const isDemo = source === 'demo';
     const fileName = isDemo ? DEMO_FILE_NAME : source.name;
-    patch({ stage: 'analyzing', fileName, anStep: 0, uploadError: '', analysisNote: '', master: null, model: null });
+    closeDoc();
+    patch({ stage: 'analyzing', fileName, anStep: 0, uploadError: '', analysisNote: '', master: null, model: null, artboards: [] });
     try {
-      let canvas: HTMLCanvasElement, dimsLabel: string, demoBoxes: Box[] | undefined;
       if (isDemo) {
         const imgs = await (imagesRef.current ?? loadDemoImages());
-        ({ canvas, boxes: demoBoxes } = await drawDemoMaster(WORKING_EDGE, imgs));
-        dimsLabel = '1080×1080 pt';
-      } else {
-        ({ canvas, dimsLabel } = await rasterizeKeyVisual(source));
+        const { canvas, boxes } = await drawDemoMaster(WORKING_EDGE, imgs);
+        await analyze({ canvas, dimsLabel: '1080×1080 pt', demoBoxes: boxes, isDemo: true });
+        return;
       }
-      patch({ anStep: 1 });
-      const rw = canvas.width, rh = canvas.height, ratio = rw / rh;
-      const url = makePreviewUrl(canvas);
-      masterRef.current = { canvas, rw, rh, ratio };
-      patch({ anStep: 2, master: { dimsLabel, ratio, url } });
-
-      const sampler = canvasSampler(canvas);
-      const bg = sampleBgColor(sampler, rw, rh);
-      let model: ObjectModel;
-      let note = '';
-      try {
-        model = normalizeModel(await visionPass(canvas), rh, bg);
-      } catch (e) {
-        const msg = errMsg(e);
-        if (!isDemo) throw new Error(`Vision pass failed: ${msg}. The file parsed fine — retry in a moment (rate limit is 15 calls/min).`);
-        model = demoModel(rh, bg, demoBoxes);
-        note = `Vision pass unavailable (${msg}) — using the precomputed object model for the demo master.`;
+      const { doc, numPages } = await openKeyVisual(source);
+      docRef.current = doc;
+      if (numPages > 1) {
+        const artboards = await artboardThumbs(doc);
+        patch({ stage: 'artboards', artboards });
+        return;
       }
-      model = measureContrast(model, sampler, rw, rh);
-      patch({ anStep: 4, analysisNote: note, model });
-      await delay(500);
-      patch({ stage: 'analysis', hover: -1 });
+      const page = await renderArtboard(doc, 1);
+      await analyze({ ...page, isDemo: false });
     } catch (e) {
-      masterRef.current = null;
-      patch({ stage: 'upload', uploadError: errMsg(e), master: null, model: null });
+      fail(e);
     }
-  }, [patch]);
+  }, [analyze, fail, patch]);
+
+  const pickArtboard = useCallback(async (index: number) => {
+    const doc = docRef.current;
+    if (!doc) return;
+    patch({ stage: 'analyzing', anStep: 0, artboards: [] });
+    try {
+      const page = await renderArtboard(doc, index);
+      await analyze({ ...page, isDemo: false });
+    } catch (e) {
+      fail(e);
+    }
+  }, [analyze, fail, patch]);
 
   const handleFiles = useCallback((files: FileList | null) => {
     const f = files?.[0];
@@ -120,6 +171,7 @@ export function useStudio() {
     if (!chosen.length) return;
     const rows: GenRow[] = chosen.map((d) => ({ name: d.name, dims: `${d.w}×${d.h}`, pct: 4, phase: 'Queued', tone: 'muted', failed: false }));
     patch({ stage: 'generating', genRows: rows, results: [] });
+    await ensureFonts(model);
     const results: AdaptResult[] = [];
     for (let i = 0; i < chosen.length; i++) {
       const upd = (p: Partial<GenRow>) => setState((s) => ({ ...s, genRows: s.genRows.map((g, j) => (j === i ? { ...g, ...p } : g)) }));
@@ -143,23 +195,38 @@ export function useStudio() {
   }, [allSizes, isSelected, patch, state.model]);
 
   // ---------- Stage 7: output ----------
+  const triggerDownload = (href: string, name: string) => {
+    const a = document.createElement('a');
+    a.href = href;
+    a.download = name;
+    a.click();
+  };
+
   const download = useCallback((r: AdaptResult) => {
     if (!r.canDownload) return;
-    const a = document.createElement('a');
-    a.href = r.url;
-    a.download = `FederalBank_${r.W}x${r.H}.${r.fmt.toLowerCase()}`;
-    a.click();
+    triggerDownload(r.url, `FederalBank_${r.W}x${r.H}.${r.fmt.toLowerCase()}`);
   }, []);
 
-  const downloadAll = useCallback(() => {
-    state.results.filter((r) => r.canDownload).forEach((r, i) => setTimeout(() => download(r), i * 350));
-  }, [download, state.results]);
+  /** One ZIP with every exportable adapt (blocked sizes are excluded by construction). */
+  const downloadAll = useCallback(async () => {
+    const files: Record<string, Uint8Array> = {};
+    for (const r of state.results) {
+      if (!r.canDownload || !r.blob) continue;
+      files[`FederalBank_${r.W}x${r.H}.${r.fmt.toLowerCase()}`] = new Uint8Array(await r.blob.arrayBuffer());
+    }
+    if (!Object.keys(files).length) return;
+    const zipped = zipSync(files, { level: 0 });
+    const url = URL.createObjectURL(new Blob([zipped.buffer as ArrayBuffer], { type: 'application/zip' }));
+    triggerDownload(url, 'FederalBank_adapts.zip');
+    setTimeout(() => URL.revokeObjectURL(url), 30_000);
+  }, [state.results]);
 
   const restart = useCallback(() => {
     urlsRef.current.forEach((u) => URL.revokeObjectURL(u));
     urlsRef.current = [];
     masterRef.current = null;
-    setState((s) => ({ ...INITIAL_STATE, overlay: s.overlay }));
+    closeDoc();
+    setState((s) => ({ ...INITIAL_STATE, overlay: s.overlay, visionConfigured: s.visionConfigured, visionProvider: s.visionProvider }));
   }, []);
 
   return {
@@ -168,7 +235,7 @@ export function useStudio() {
     isSelected,
     selectedCount,
     actions: {
-      handleFiles, loadDemo,
+      handleFiles, loadDemo, pickArtboard,
       setHover: (i: number) => patch({ hover: i }),
       toSizes: () => patch({ stage: 'sizes' }),
       toggleSize, addCustomSize, generate,

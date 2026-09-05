@@ -1,3 +1,4 @@
+import { canvasMeasurer } from './fonts';
 import { runGates, weightGate } from './gates';
 import { planAdapt } from './plan';
 import { renderPlan } from './render';
@@ -21,16 +22,17 @@ export async function computeAdapt(
 ): Promise<AdaptResult> {
   const { w: W, h: H, name } = target;
   const social = !!target.social;
-  const { plan, escalations, margins: m } = planAdapt(master, model, target);
+  const { plan, escalations, margins: m } = planAdapt(master, model, target, { measure: canvasMeasurer() });
   let gates = runGates(plan, model, W, H, m, social);
   let url = '', kb = 0, fmt: 'PNG' | 'JPG' = 'PNG';
+  let blob: Blob | null = null;
   const blocked = plan.kind === 'BLOCKED';
 
   if (plan.kind !== 'BLOCKED') {
     onPhase?.(PHASE[plan.kind]);
     const canvas = renderPlan(master, plan, W, H, model.background.color);
     onPhase?.('QA gates');
-    let blob = await toBlob(canvas, 'image/png');
+    blob = await toBlob(canvas, 'image/png');
     if (blob.size > weightLimit(social)) {
       const jb = await toBlob(canvas, 'image/jpeg', 0.85);
       if (jb.size < blob.size) { blob = jb; fmt = 'JPG'; }
@@ -53,12 +55,13 @@ export async function computeAdapt(
   else if (strategy === 'RECOMPOSE') { status = 'review'; statusLabel = 'Rebuilt — review required'; }
   else { status = 'clean'; statusLabel = 'QA passed · compliance review (BFSI)'; }
 
+  const overflowNote = plan.kind === 'RECOMPOSE' && plan.overflows.length ? ` ${plan.overflows.join('; ')}.` : '';
   const summary = blocked
     ? 'Legal cannot render at its minimum size within this canvas. Not exported.'
-    : qaFail ? `${plan.summary} Export withheld until the failed gate is resolved.` : plan.summary;
+    : qaFail ? `${plan.summary}${overflowNote} Export withheld until the failed gate is resolved.` : plan.summary;
 
   return {
-    W, H, name, dims: `${W}×${H}`, social, url, fmt, kb, strategy,
+    W, H, name, dims: `${W}×${H}`, social, url, fmt, kb, blob, strategy,
     blocked, blockMsg: plan.kind === 'BLOCKED' ? plan.blockMsg : '',
     status, statusLabel, escalations,
     masks: plan.kind === 'BLOCKED' ? [] : plan.masks,

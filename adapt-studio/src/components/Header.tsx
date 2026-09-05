@@ -1,7 +1,7 @@
 import type { Stage } from '../state/types';
 
 const STEPS = ['Master', 'Analysis', 'Sizes', 'Generate', 'Adapts'];
-const STAGE_INDEX: Record<Stage, number> = { upload: 0, analyzing: 1, analysis: 1, sizes: 2, generating: 3, results: 4 };
+const STAGE_INDEX: Record<Stage, number> = { upload: 0, analyzing: 1, artboards: 0, analysis: 1, sizes: 2, generating: 3, results: 4 };
 
 export function Header({ stage }: { stage: Stage }) {
   const active = STAGE_INDEX[stage];

@@ -1,8 +1,8 @@
+import { LOGO_MIN_HEIGHT_PX } from './constants';
 import { formatBytes, legalMin, weightLimit } from './safeZones';
 import type { AdaptPlan, BlockedPlan, Gate, Margins, ObjectModel } from './types';
 
-/** Brand book p.20: the wordmark must never render below 20px tall on digital. */
-export const LOGO_MIN_HEIGHT_PX = 20;
+export { LOGO_MIN_HEIGHT_PX };
 
 export const mkGate = (label: string, pass: boolean): Gate => ({ label, pass });
 

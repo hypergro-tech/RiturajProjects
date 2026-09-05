@@ -5,7 +5,7 @@ import type { AdaptPlan, KeepRect, ObjectModel, TaggedElement } from '../types';
 
 const el = (type: TaggedElement['type'], contrast: number): TaggedElement => ({
   type, desc: '', box: { x: 0, y: 0, w: 0.1, h: 0.1 }, priority: 2, mustKeep: true, droppable: false,
-  minLegiblePx: 24, fontPx: 40, contrast,
+  minLegiblePx: 24, fontPx: 40, contrast, visionText: '', visionShortForm: '',
 });
 const model = (contrasts: number[] = []): ObjectModel => ({
   elements: contrasts.map((c) => el('headline', c)),
@@ -13,7 +13,7 @@ const model = (contrasts: number[] = []): ObjectModel => ({
   regulated: true, detectedRegulated: true, notes: '',
 });
 const rect = (type: KeepRect['type'], x: number, y: number, w: number, h: number, fontPx = 0, min = 0): KeepRect => ({ type, x, y, w, h, fontPx, min });
-const rebuilt = (keepRects: KeepRect[]): AdaptPlan => ({ kind: 'RECOMPOSE', ops: [], dropped: [], masks: [], keepRects, summary: '' });
+const rebuilt = (keepRects: KeepRect[]): AdaptPlan => ({ kind: 'RECOMPOSE', ops: [], dropped: [], masks: [], keepRects, summary: '', changes: [], overflows: [] });
 const byLabel = (gates: { label: string; pass: boolean }[]) => Object.fromEntries(gates.map((g) => [g.label.split(' ')[0], g.pass]));
 
 const W = 300, H = 250, m = safeMargins(W, H, false);

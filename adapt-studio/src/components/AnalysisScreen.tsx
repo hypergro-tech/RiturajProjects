@@ -39,7 +39,15 @@ export function AnalysisScreen({ master, model, note, hover, onHover, onNext }: 
                 <div key={i} className="chip" onMouseEnter={() => onHover(i)} onFocus={() => onHover(i)} tabIndex={0}>
                   <div className="chip-prio" style={{ background: pbg, color: pcol }}>{e.priority}</div>
                   <div className="chip-type">{e.type}</div>
-                  <div className="chip-desc">{e.desc}</div>
+                  <div className="chip-desc">
+                    {e.desc}
+                    {e.text && (
+                      <div className="chip-sub">
+                        “{e.text.content.replace(/\n/g, ' / ')}” · {e.text.source === 'pdf' ? 'PDF text' : e.text.source === 'vision' ? 'transcribed by the vision model' : 'demo text'} · {e.text.fontLabel}
+                      </div>
+                    )}
+                    {!e.text && e.minLegiblePx > 0 && <div className="chip-sub">no readable text — will be scaled as a raster patch</div>}
+                  </div>
                   {e.minLegiblePx > 0 && <div className="chip-min">min {e.minLegiblePx}px</div>}
                   <div className={'chip-keep' + (e.mustKeep ? ' is-keep' : '')}>{e.mustKeep ? 'must keep' : 'droppable'}</div>
                 </div>

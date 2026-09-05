@@ -23,7 +23,7 @@ export function ResultsScreen({ results, overlay, onToggleOverlay, onDownloadAll
             <span className={'switch' + (overlay ? ' is-on' : '')}><span className="switch-knob" /></span>
             <span className="switch-label">Safe zones + masks</span>
           </button>
-          <button type="button" className="btn btn-primary btn-sm" onClick={onDownloadAll} disabled={results.every((r) => !r.canDownload)}>Download all</button>
+          <button type="button" className="btn btn-primary btn-sm" onClick={onDownloadAll} disabled={results.every((r) => !r.canDownload)}>Download all (ZIP)</button>
           <button type="button" className="btn btn-link" onClick={onRestart}>Start over</button>
         </div>
       </div>

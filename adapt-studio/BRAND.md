@@ -12,9 +12,13 @@ changing any rule below.
 | Logo uncropped, inside the canvas | Stage 6 spec | Logo gate |
 | Text contrast ≥ 4.5:1 | Stage 4 spec | Contrast gate (measured on the master raster) |
 | Legal ≥ 14 px display / 18 px @1080 social | Stage 4 spec | `legalMin()` — also the escalation floor for the legal element |
-| CTA accent colour exclusive to the CTA | Stage 4 spec, p.34 | Not measurable from raster patches yet — see backlog |
+| CTA accent colour exclusive to the CTA | Stage 4 spec, p.34 | Not gated yet — the pill colour is known, so a colour-mask pass is the next step |
+| Brand faces when a master's font cannot be reproduced | p.40–43 | `BRAND_FONTS` in `src/pipeline/constants.ts`: Merriweather 600 headlines, Lato body / CTA / legal |
 
-## Rules for the production text re-set (backlog)
+Text re-set order of preference: the PDF's embedded face (pdf.js keeps it loaded), then the same family as a shipped
+web font, then the brand faces above. The analysis screen names the face used for every element.
+
+## Layout and logo rules not yet enforced automatically
 
 - **Clearspace** on all four sides of the wordmark = height of the lowercase **"e"** in "Federal" (p.20).
   The layout margin in brand templates is **X = wordmark height**, equal on all sides; gutter = X/2 (p.67–68).

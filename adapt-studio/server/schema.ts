@@ -13,6 +13,8 @@ export const ObjectModelSchema = z.object({
       droppable: z.boolean(),
       minLegiblePx: z.number().describe('Minimum legible font size at output: headline 24, cta 16, legal 18, body/subhead 14; 0 for non-text'),
       lines: z.number().describe('Exact number of text lines inside the box; 0 for non-text'),
+      text: z.string().describe('Verbatim text content for text elements, reading order, single spaces between words; empty string for non-text'),
+      shortForm: z.string().describe('For headline and cta only: a 2–4 word variant that keeps the meaning, for very small formats; empty string otherwise'),
     }),
   ).describe('At most 10 elements'),
   background: z.object({
@@ -42,6 +44,7 @@ export function buildPrompt(width: number, height: number): string {
     '- logo, headline and cta are mustKeep. legal is mustKeep when regulated. decorative elements are droppable.',
     '- regulated = true if any legal, disclaimer, T&C or financial-product text appears.',
     '- background.extendable only if the background near the edges is a flat colour, simple gradient or blur; list exactly which edges can be extended.',
+    '- text: transcribe text elements verbatim (this is re-set at other sizes, so accuracy matters); shortForm: a 2–4 word variant for headline and cta.',
     '- notes: the single most important thing to protect when resizing.',
   ].join('\n');
 }

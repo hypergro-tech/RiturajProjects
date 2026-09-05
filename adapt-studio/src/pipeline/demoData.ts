@@ -1,5 +1,5 @@
 import { PRIORITY } from './constants';
-import type { Box, ElementType, ObjectModel, TaggedElement } from './types';
+import type { Box, ElementType, ObjectModel, TaggedElement, TextSpec } from './types';
 
 /** Demo master definition (FedOne Personal Loan, 1080×1080). Drawn to canvas, then run through the real pipeline. */
 export interface DemoElement {
@@ -20,6 +20,23 @@ export const DEMO_ELEMENTS: DemoElement[] = [
 ];
 
 const MIN: Partial<Record<ElementType, number>> = { headline: 24, body: 14, cta: 16, legal: 18 };
+const SHORT: Partial<Record<ElementType, string>> = { headline: 'Dreams don’t wait.', cta: 'Apply' };
+const WEIGHT_LABEL: Record<number, string> = { 500: 'Medium', 700: 'Bold', 800: 'Extra Bold' };
+
+/** Text specs for the demo master: it is drawn in Figtree, so it re-sets in Figtree. */
+export function demoTextSpec(d: DemoElement): TextSpec | undefined {
+  if (!d.text) return undefined;
+  const weight = d.type === 'cta' ? 700 : d.fw ?? 500;
+  return {
+    content: d.text, shortForm: SHORT[d.type] ?? '',
+    family: 'Figtree', weight, italic: !!d.it,
+    color: d.type === 'cta' ? '#003A8F' : d.color === 'rgba(255,255,255,0.85)' ? '#d9e1f2' : '#ffffff',
+    bgColor: d.type === 'cta' ? '#FF9C00' : '',
+    lineHeight: d.type === 'headline' ? 1.14 : 1.25,
+    source: 'demo', fontSource: 'web',
+    fontLabel: `Figtree ${WEIGHT_LABEL[weight] ?? weight}${d.it ? ' Italic' : ''} (web font)`,
+  };
+}
 
 /**
  * Precomputed object model for the demo master, used when the vision pass is unavailable.
@@ -36,6 +53,9 @@ export function demoModel(masterRh: number, bgColor: string, measuredBoxes?: Box
     minLegiblePx: MIN[d.type] ?? 0,
     fontPx: d.fs ? d.fs * (masterRh / 1080) : 0,
     contrast: 0,
+    visionText: d.text ?? '',
+    visionShortForm: SHORT[d.type] ?? '',
+    text: demoTextSpec(d),
   }));
   return {
     elements,
@@ -43,5 +63,16 @@ export function demoModel(masterRh: number, bgColor: string, measuredBoxes?: Box
     regulated: true,
     detectedRegulated: true,
     notes: 'Protect the legal line; CTA orange is exclusive.',
+  };
+}
+
+/** Overlay the demo's known text specs onto a model produced by the vision pass (matched by element type). */
+export function applyDemoText(model: ObjectModel): ObjectModel {
+  return {
+    ...model,
+    elements: model.elements.map((e) => {
+      const d = DEMO_ELEMENTS.find((x) => x.type === e.type && x.text);
+      return d ? { ...e, text: demoTextSpec(d) } : e;
+    }),
   };
 }

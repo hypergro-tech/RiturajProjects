@@ -1,5 +1,6 @@
 import { AnalysisScreen } from './components/AnalysisScreen';
 import { AnalyzingScreen } from './components/AnalyzingScreen';
+import { ArtboardsScreen } from './components/ArtboardsScreen';
 import { GeneratingScreen } from './components/GeneratingScreen';
 import { Header } from './components/Header';
 import { ResultsScreen } from './components/ResultsScreen';
@@ -14,8 +15,11 @@ export default function App() {
   return (
     <div className="app">
       <Header stage={state.stage} />
-      {state.stage === 'upload' && <UploadScreen error={state.uploadError} onFiles={actions.handleFiles} onDemo={actions.loadDemo} />}
+      {state.stage === 'upload' && (
+        <UploadScreen error={state.uploadError} visionConfigured={state.visionConfigured} visionProvider={state.visionProvider} onFiles={actions.handleFiles} onDemo={actions.loadDemo} />
+      )}
       {state.stage === 'analyzing' && <AnalyzingScreen fileName={state.fileName} step={state.anStep} />}
+      {state.stage === 'artboards' && <ArtboardsScreen fileName={state.fileName} artboards={state.artboards} onPick={(i) => void actions.pickArtboard(i)} />}
       {state.stage === 'analysis' && state.master && state.model && (
         <AnalysisScreen master={state.master} model={state.model} note={state.analysisNote} hover={state.hover} onHover={actions.setHover} onNext={actions.toSizes} />
       )}

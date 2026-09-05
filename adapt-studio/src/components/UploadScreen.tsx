@@ -1,8 +1,14 @@
 import { useRef, useState, type DragEvent } from 'react';
 
-interface Props { error: string; onFiles: (files: FileList | null) => void; onDemo: () => void }
+interface Props {
+  error: string;
+  visionConfigured: boolean | null;
+  visionProvider: string;
+  onFiles: (files: FileList | null) => void;
+  onDemo: () => void;
+}
 
-export function UploadScreen({ error, onFiles, onDemo }: Props) {
+export function UploadScreen({ error, visionConfigured, visionProvider, onFiles, onDemo }: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [dragging, setDragging] = useState(false);
   const onDrop = (e: DragEvent<HTMLDivElement>) => {
@@ -41,6 +47,12 @@ export function UploadScreen({ error, onFiles, onDemo }: Props) {
         />
         {error && <div className="dropzone-error" role="alert">{error}</div>}
       </div>
+      {visionConfigured === false && (
+        <div className="note-amber upload-banner" role="status">
+          The vision service is not configured on the server{visionProvider ? ` (${visionProvider})` : ''}: uploaded files will stop at analysis with an error.
+          The demo master still runs on its built-in object model.
+        </div>
+      )}
       <div className="or-divider"><span />or<span /></div>
       <button type="button" className="btn btn-secondary" onClick={onDemo}>Use demo master — FedOne Personal Loan (1080×1080)</button>
     </section>

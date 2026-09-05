@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { z } from 'zod';
-import { analyzeKeyVisual, AnalyzeError, DEFAULT_MODEL } from './analyze.js';
+import { analyzeKeyVisual, AnalyzeError, DEFAULT_MODEL, describeProvider, detectProvider, isConfigured } from './analyze.js';
 import { RateLimiter } from './rateLimit.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -27,7 +27,14 @@ const AnalyzeBody = z.object({
 });
 
 app.get('/api/health', (_req: Request, res: Response) => {
-  res.json({ ok: true, model: process.env.ANALYSIS_MODEL || DEFAULT_MODEL, configured: !!process.env.ANTHROPIC_API_KEY, rateLimitPerMin: RATE });
+  res.json({
+    ok: true,
+    model: process.env.ANALYSIS_MODEL || DEFAULT_MODEL,
+    provider: describeProvider(),
+    providerKind: detectProvider(),
+    configured: isConfigured(),
+    rateLimitPerMin: RATE,
+  });
 });
 
 app.post('/api/analyze', async (req: Request, res: Response) => {
@@ -68,5 +75,5 @@ if (process.env.NODE_ENV === 'production' && fs.existsSync(dist)) {
 }
 
 app.listen(PORT, () => {
-  console.log(`[adapt-studio] api listening on http://localhost:${PORT} (model ${process.env.ANALYSIS_MODEL || DEFAULT_MODEL}, key ${process.env.ANTHROPIC_API_KEY ? 'set' : 'MISSING'})`);
+  console.log(`[adapt-studio] api listening on http://localhost:${PORT} · ${describeProvider()} · model ${process.env.ANALYSIS_MODEL || DEFAULT_MODEL} · credentials ${isConfigured() ? 'present' : 'MISSING'}`);
 });

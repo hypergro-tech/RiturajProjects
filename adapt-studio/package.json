@@ -14,12 +14,17 @@
     "test:watch": "vitest",
     "typecheck": "tsc -b && tsc -p tsconfig.server.json --noEmit",
     "lint": "oxlint",
-    "e2e": "node e2e/demo-flow.mjs"
+    "e2e": "node e2e/demo-flow.mjs",
+    "predev": "node scripts/copy-pdf-fonts.mjs",
+    "prebuild": "node scripts/copy-pdf-fonts.mjs",
+    "postinstall": "node scripts/copy-pdf-fonts.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.123.0",
+    "@anthropic-ai/vertex-sdk": "^0.19.7",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
+    "fflate": "^0.8.3",
     "pdfjs-dist": "^4.10.38",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",

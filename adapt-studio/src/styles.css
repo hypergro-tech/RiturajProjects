@@ -97,6 +97,7 @@ input:focus, button:focus-visible, [tabindex]:focus-visible { outline: 2px solid
 .chip-prio { width: 22px; height: 22px; border-radius: 50%; font-size: 11.5px; font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
 .chip-type { min-width: 86px; font-weight: 700; font-size: 13.5px; text-transform: capitalize; }
 .chip-desc { flex: 1; font-size: 13px; color: var(--secondary); }
+.chip-sub { font-size: 11.5px; color: var(--muted); margin-top: 3px; line-height: 1.35; }
 .chip-min { font-size: 11.5px; color: var(--muted); font-weight: 600; white-space: nowrap; }
 .chip-keep { font-size: 11.5px; font-weight: 700; padding: 3px 9px; border-radius: 999px; background: #EEF1F6; color: var(--secondary); white-space: nowrap; }
 .chip-keep.is-keep { background: var(--blue-bg); color: var(--blue); }
@@ -180,6 +181,12 @@ input:focus, button:focus-visible, [tabindex]:focus-visible { outline: 2px solid
 .modal-head .spacer { min-width: 60px; }
 .modal-name { font-weight: 800; font-size: 16px; }
 .modal-field { display: flex; align-items: center; justify-content: center; background: repeating-linear-gradient(45deg, #E9EEF7 0 12px, #EDF1F9 12px 24px); border-radius: 10px; padding: 20px; overflow: auto; }
+
+/* Artboard picker + upload banner */
+.artboard-tile { text-align: left; font: inherit; color: inherit; }
+.artboard-thumb { height: 150px; overflow: hidden; }
+.artboard-thumb img { max-width: 100%; max-height: 100%; object-fit: contain; box-shadow: 0 1px 6px rgba(16,35,63,0.18); }
+.upload-banner { width: 580px; max-width: 90vw; font-size: 12.5px; }
 
 @media (max-width: 900px) {
   .analysis { flex-direction: column; }

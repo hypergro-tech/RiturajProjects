@@ -2,7 +2,7 @@ import { firstIllegible, illegibleNote, keepUnion } from './model';
 import { planRecompose } from './recompose';
 import { route } from './router';
 import { legalMin, safeMargins } from './safeZones';
-import type { AdaptPlan, BlockedPlan, KeepRect, Mask, MasterInfo, ObjectModel, PlanResult, Strategy, TargetSize } from './types';
+import type { AdaptPlan, BlockedPlan, KeepRect, Mask, MasterInfo, ObjectModel, PlanOptions, PlanResult, Strategy, TargetSize } from './types';
 
 /** Protected elements mapped through a uniform scale `s` and offset (ox, oy) into output px. */
 const keepRectsAt = (model: ObjectModel, rw: number, rh: number, s: number, ox: number, oy: number): KeepRect[] =>
@@ -23,7 +23,7 @@ const withLegalFloor = (model: ObjectModel, W: number, social: boolean): ObjectM
  * Stages 2–3 — route one target size and plan its adapt, escalating
  * SCALE → SMART_CROP → EXPAND → RECOMPOSE → BLOCK. Pure geometry: no canvas work happens here.
  */
-export function planAdapt(master: MasterInfo, input: ObjectModel, target: TargetSize): PlanResult {
+export function planAdapt(master: MasterInfo, input: ObjectModel, target: TargetSize, opts: PlanOptions): PlanResult {
   const { w: W, h: H } = target;
   const social = !!target.social;
   const model = withLegalFloor(input, W, social);
@@ -118,8 +118,8 @@ export function planAdapt(master: MasterInfo, input: ObjectModel, target: Target
         summary: `Canvas extended ${dirs.join(' & ')} by sampling the ${bg.complexity} background edges; master pixels immutable. Extended regions masked for review.`,
       };
     } else {
-      plan = planRecompose(master, model, W, H, social, m);
+      plan = planRecompose(master, model, W, H, social, m, opts);
     }
   }
-  return { plan: plan ?? planRecompose(master, model, W, H, social, m), escalations, routed, margins: m };
+  return { plan: plan ?? planRecompose(master, model, W, H, social, m, opts), escalations, routed, margins: m };
 }

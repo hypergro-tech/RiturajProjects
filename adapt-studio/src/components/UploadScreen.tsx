@@ -52,7 +52,7 @@ export function UploadScreen({ error, visionConfigured, visionProvider, onFiles,
       {visionConfigured === false && (
         <div className="note-amber upload-banner" role="status">
           {ARTIFACT_MODE
-            ? 'Claude is not available in this view, so uploaded files will stop at analysis. Open the page inside claude.ai to analyse real files; the demo master still runs on its built-in object model.'
+            ? 'Claude is not available in this view. Files are analysed from their text layer and artwork by rule instead, so check the element types before generating; outlined artwork with no text layer cannot be analysed here. The demo master runs on its built-in model.'
             : `The vision service is not configured on the server${visionProvider ? ` (${visionProvider})` : ''}: uploaded files will stop at analysis with an error. The demo master still runs on its built-in object model.`}
         </div>
       )}

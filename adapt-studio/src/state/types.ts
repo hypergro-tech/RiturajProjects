@@ -3,6 +3,8 @@ import type { AdaptResult, ObjectModel, TargetSize } from '../pipeline/types';
 
 export type Stage = 'upload' | 'analyzing' | 'artboards' | 'analysis' | 'sizes' | 'generating' | 'results';
 export type Tone = 'muted' | 'secondary' | 'ok' | 'warn' | 'bad';
+/** Where the object model came from: image vision pass, text-only Claude over the measured layout, the layout heuristics alone, or the demo's precomputed model. */
+export type AnalysisSource = 'vision' | 'text-model' | 'heuristic' | 'demo';
 
 export interface GenRow { name: string; dims: string; pct: number; phase: string; tone: Tone; failed: boolean }
 export interface MasterView { dimsLabel: string; ratio: number; url: string }
@@ -13,6 +15,7 @@ export interface StudioState {
   anStep: number;
   uploadError: string;
   analysisNote: string;
+  analysisSource: AnalysisSource | null;
   master: MasterView | null;
   model: ObjectModel | null;
   hover: number;
@@ -31,7 +34,7 @@ export interface StudioState {
 }
 
 export const INITIAL_STATE: StudioState = {
-  stage: 'upload', fileName: '', anStep: 0, uploadError: '', analysisNote: '',
+  stage: 'upload', fileName: '', anStep: 0, uploadError: '', analysisNote: '', analysisSource: null,
   master: null, model: null, hover: -1, selected: null, customSizes: [],
   genRows: [], results: [], overlay: false, modalIdx: -1,
   artboards: [], visionConfigured: null, visionProvider: '',

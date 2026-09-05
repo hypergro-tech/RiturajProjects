@@ -21,7 +21,10 @@ export default function App() {
       {state.stage === 'analyzing' && <AnalyzingScreen fileName={state.fileName} step={state.anStep} />}
       {state.stage === 'artboards' && <ArtboardsScreen fileName={state.fileName} artboards={state.artboards} onPick={(i) => void actions.pickArtboard(i)} />}
       {state.stage === 'analysis' && state.master && state.model && (
-        <AnalysisScreen master={state.master} model={state.model} note={state.analysisNote} hover={state.hover} onHover={actions.setHover} onNext={actions.toSizes} />
+        <AnalysisScreen
+          master={state.master} model={state.model} note={state.analysisNote} source={state.analysisSource}
+          hover={state.hover} onHover={actions.setHover} onRetag={actions.setElementType} onNext={actions.toSizes}
+        />
       )}
       {state.stage === 'sizes' && state.master && (
         <SizesScreen

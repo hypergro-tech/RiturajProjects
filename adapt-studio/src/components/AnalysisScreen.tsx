@@ -1,17 +1,26 @@
-import type { ObjectModel } from '../pipeline/types';
-import type { MasterView } from '../state/types';
+import type { ElementType, ObjectModel } from '../pipeline/types';
+import type { AnalysisSource, MasterView } from '../state/types';
 
 const PRIO_COLORS: Record<number, [string, string]> = {
   1: ['#004BBE', '#fff'], 2: ['#1A5FD0', '#fff'], 3: ['#FF9C00', '#3A2800'],
   4: ['#B4231F', '#fff'], 5: ['#7A8AA6', '#fff'], 6: ['#C3CEE0', '#3A4A63'],
 };
 
+const SOURCE_LABEL: Record<AnalysisSource, string> = {
+  vision: 'vision pass on the rasterized artboard',
+  'text-model': 'text layer + artwork, classified by Claude from a description',
+  heuristic: 'text layer + artwork, classified by rule (no model)',
+  demo: 'precomputed for the demo master',
+};
+
+const TYPE_OPTIONS: ElementType[] = ['logo', 'headline', 'subhead', 'body', 'cta', 'legal', 'product', 'person', 'decorative'];
+
 interface Props {
-  master: MasterView; model: ObjectModel; note: string;
-  hover: number; onHover: (i: number) => void; onNext: () => void;
+  master: MasterView; model: ObjectModel; note: string; source: AnalysisSource | null;
+  hover: number; onHover: (i: number) => void; onRetag: (index: number, type: ElementType) => void; onNext: () => void;
 }
 
-export function AnalysisScreen({ master, model, note, hover, onHover, onNext }: Props) {
+export function AnalysisScreen({ master, model, note, source, hover, onHover, onRetag, onNext }: Props) {
   const mpW = Math.min(430, Math.round(430 * (master.ratio >= 1 ? 1 : master.ratio)));
   const mpH = Math.round(mpW / master.ratio);
   const hd = hover >= 0 ? model.elements[hover] : null;
@@ -31,14 +40,22 @@ export function AnalysisScreen({ master, model, note, hover, onHover, onNext }: 
       </div>
       <div className="analysis-right">
         <div className="card">
-          <div className="card-label">TAGGED OBJECT MODEL — vision pass on the rasterized artboard</div>
+          <div className="card-label">TAGGED OBJECT MODEL — {SOURCE_LABEL[source ?? 'vision']}</div>
           <div className="chips" onMouseLeave={() => onHover(-1)}>
             {model.elements.map((e, i) => {
               const [pbg, pcol] = PRIO_COLORS[e.priority] ?? PRIO_COLORS[6];
               return (
                 <div key={i} className="chip" onMouseEnter={() => onHover(i)} onFocus={() => onHover(i)} tabIndex={0}>
                   <div className="chip-prio" style={{ background: pbg, color: pcol }}>{e.priority}</div>
-                  <div className="chip-type">{e.type}</div>
+                  <select
+                    className="chip-type chip-select"
+                    value={e.type}
+                    aria-label={`Element ${i + 1} type`}
+                    title="Change the element type if the analysis got it wrong"
+                    onChange={(ev) => onRetag(i, ev.target.value as ElementType)}
+                  >
+                    {TYPE_OPTIONS.map((t) => <option key={t} value={t}>{t}</option>)}
+                  </select>
                   <div className="chip-desc">
                     {e.desc}
                     {e.text && (
@@ -56,6 +73,7 @@ export function AnalysisScreen({ master, model, note, hover, onHover, onNext }: 
             {model.elements.length === 0 && <div className="chip-desc">No elements were tagged. Try a cleaner artboard or re-run the analysis.</div>}
           </div>
           {model.notes && <div className="model-notes">Protect first: {model.notes}</div>}
+          <div className="model-notes">Wrong type? Change it in the dropdown; keep rules and legibility floors follow the type.</div>
         </div>
         <div className="analysis-row">
           <div className="card">

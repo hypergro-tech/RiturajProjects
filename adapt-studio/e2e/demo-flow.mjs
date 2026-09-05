@@ -60,7 +60,7 @@ async function readResults(page) {
 async function runToResults(page, prefix) {
   await page.locator('.chip').first().hover();
   await shot(page, `${prefix}-analysis.png`);
-  const chips = await page.locator('.chip').evaluateAll((cs) => cs.map((c) => `${c.querySelector('.chip-type').textContent}: ${c.querySelector('.chip-sub')?.textContent ?? '(no text)'}`));
+  const chips = await page.locator('.chip').evaluateAll((cs) => cs.map((c) => `${c.querySelector('.chip-select').value}: ${c.querySelector('.chip-sub')?.textContent ?? '(no text)'}`));
   console.log('elements:\n  ' + chips.join('\n  '));
   const note = await page.locator('.master-card .note-amber').innerText().catch(() => '');
   if (note) console.log('analysis note:', note);

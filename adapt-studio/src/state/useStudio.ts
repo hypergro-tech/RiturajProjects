@@ -2,21 +2,39 @@ import { zipSync } from 'fflate';
 import type { PDFDocumentProxy } from 'pdfjs-dist';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { computeAdapt } from '../pipeline/adapt';
-import { CUSTOM_SIZE_LIMITS, DEFAULT_SIZES, WORKING_EDGE } from '../pipeline/constants';
+import { CUSTOM_SIZE_LIMITS, DEFAULT_MIN_PX, DEFAULT_SIZES, PRIORITY, WORKING_EDGE } from '../pipeline/constants';
 import { drawDemoMaster, loadDemoImages, type DemoImages } from '../pipeline/demo';
 import { applyDemoText, demoModel } from '../pipeline/demoData';
 import { ARTIFACT_MODE, viewerRuntime } from '../pipeline/env';
 import { ensureFonts, fontAvailable } from '../pipeline/fonts';
 import { artboardThumbs, canvasSampler, makePreviewUrl, openKeyVisual, renderArtboard } from '../pipeline/ingest';
-import { measureContrast, normalizeModel, sampleBgColor } from '../pipeline/model';
+import { analyzeLayout, describeLayout, mergeClassification } from '../pipeline/layout';
+import { deriveFontPx, isTextType, measureContrast, normalizeModel, sampleBgColor } from '../pipeline/model';
 import { route } from '../pipeline/router';
 import { attachTextSpecs, type FontInfo } from '../pipeline/text';
-import { visionPass } from '../pipeline/vision';
-import type { AdaptResult, Box, MasterRaster, ObjectModel, TargetSize, TextRun } from '../pipeline/types';
-import { INITIAL_STATE, type GenRow, type StudioState } from './types';
+import { classifyViaText, textSamplingAvailable, visionPass } from '../pipeline/vision';
+import type { AdaptResult, Box, ElementType, MasterRaster, ObjectModel, RawObjectModel, TaggedElement, TargetSize, TextRun } from '../pipeline/types';
+import { INITIAL_STATE, type AnalysisSource, type GenRow, type StudioState } from './types';
 
 const delay = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const errMsg = (e: unknown) => (e instanceof Error ? e.message : String(e));
+
+const FORCED_KEEP = new Set<ElementType>(['logo', 'headline', 'cta', 'legal']);
+
+/** Re-derive the flags that depend on an element's type after a manual correction. */
+export function retagElement(e: TaggedElement, type: ElementType): TaggedElement {
+  const isText = isTextType(type);
+  return {
+    ...e,
+    type,
+    priority: PRIORITY[type],
+    mustKeep: FORCED_KEEP.has(type),
+    droppable: type === 'decorative' || type === 'body' || type === 'subhead',
+    minLegiblePx: isText ? DEFAULT_MIN_PX[type] ?? 14 : 0,
+    fontPx: isText ? e.fontPx || deriveFontPx(e.box.h * 1000, 1) : 0,
+    text: isText ? e.text : undefined,
+  };
+}
 
 export const DEMO_FILE_NAME = 'FedOne_PersonalLoan_KV_1080.ai (demo)';
 const VIEWER_PROVIDER = 'Claude in this viewer';
@@ -77,23 +95,52 @@ export function useStudio() {
 
     const sampler = canvasSampler(canvas);
     const bg = sampleBgColor(sampler, rw, rh);
-    let model: ObjectModel;
+    // Deterministic layout analysis from the PDF text layer + raster: the fallback when no image can reach a model.
+    const layout = input.runs?.length ? analyzeLayout({ runs: input.runs, sample: sampler, rw, rh, bgHex: bg }) : null;
+    let raw: RawObjectModel | null = null;
+    let model: ObjectModel | null = null;
     let note = '';
+    let source: AnalysisSource = 'vision';
     try {
-      model = normalizeModel(await visionPass(canvas), rh, bg);
-      model = attachTextSpecs(model, { runs: input.runs, fonts: input.fonts, sample: sampler, rw, rh, fontAvailable });
-      if (isDemo) model = applyDemoText(model);
+      raw = await visionPass(canvas);
     } catch (e) {
       const msg = errMsg(e);
-      if (!isDemo) {
-        const hint = ARTIFACT_MODE ? 'The file parsed fine; try again from the upload screen.' : 'The file parsed fine — retry in a moment (rate limit is 15 calls/min).';
-        throw new Error(`Vision pass failed: ${msg}. ${hint}`);
+      if (layout && layout.blocks.length) {
+        if (ARTIFACT_MODE && (await textSamplingAvailable())) {
+          try {
+            const cls = await classifyViaText(describeLayout(layout, rw, rh), {
+              text: layout.blocks.map((_, i) => `T${i}`),
+              art: layout.components.slice(0, 6).map((_, i) => `A${i}`),
+            });
+            raw = mergeClassification(layout, cls, rw, rh);
+            source = 'text-model';
+            note = `No image could be sent to Claude (${msg}), so the elements were read from the file's text layer and artwork and Claude classified that description. Check the types before generating.`;
+          } catch (e2) {
+            raw = layout.model;
+            source = 'heuristic';
+            note = `No model was available (${msg}; ${errMsg(e2)}). Elements were detected from the file's text layer and artwork by rule. Check the types before generating.`;
+          }
+        } else {
+          raw = layout.model;
+          source = 'heuristic';
+          note = `Vision pass unavailable (${msg}). Elements were detected from the file's text layer and artwork by rule. Check the types before generating.`;
+        }
+      } else if (isDemo) {
+        model = demoModel(rh, bg, input.demoBoxes);
+        source = 'demo';
+        note = `Vision pass unavailable (${msg}) — using the precomputed object model for the demo master.`;
+      } else {
+        throw new Error(`Vision pass failed: ${msg}. This file has no text layer to fall back on (outlined artwork), so it needs the vision model.`);
       }
-      model = demoModel(rh, bg, input.demoBoxes);
-      note = `Vision pass unavailable (${msg}) — using the precomputed object model for the demo master.`;
     }
+    if (raw) {
+      model = normalizeModel(raw, rh, bg);
+      model = attachTextSpecs(model, { runs: input.runs, fonts: input.fonts, sample: sampler, rw, rh, fontAvailable });
+      if (isDemo) model = applyDemoText(model);
+    }
+    if (!model) throw new Error('analysis produced no object model');
     model = measureContrast(model, sampler, rw, rh);
-    patch({ anStep: 4, analysisNote: note, model });
+    patch({ anStep: 4, analysisNote: note, analysisSource: source, model });
     await delay(500);
     patch({ stage: 'analysis', hover: -1 });
   }, [patch]);
@@ -153,6 +200,15 @@ export function useStudio() {
   }, [ingest, patch]);
 
   const loadDemo = useCallback(() => { void ingest('demo'); }, [ingest]);
+
+  /** Let a person correct a mis-tagged element: type drives priority, keep rules, legibility floor and whether text is re-set. */
+  const setElementType = useCallback((index: number, type: ElementType) => {
+    setState((s) => {
+      if (!s.model) return s;
+      const elements = s.model.elements.map((e, i) => (i === index ? retagElement(e, type) : e));
+      return { ...s, model: { ...s.model, elements } };
+    });
+  }, []);
 
   // ---------- Stage 2: sizes ----------
   const toggleSize = useCallback((i: number) => {
@@ -263,7 +319,7 @@ export function useStudio() {
     isSelected,
     selectedCount,
     actions: {
-      handleFiles, loadDemo, pickArtboard,
+      handleFiles, loadDemo, pickArtboard, setElementType,
       setHover: (i: number) => patch({ hover: i }),
       toSizes: () => patch({ stage: 'sizes' }),
       toggleSize, addCustomSize, generate,

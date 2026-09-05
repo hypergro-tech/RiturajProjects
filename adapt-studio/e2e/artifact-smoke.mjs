@@ -60,10 +60,18 @@ try {
   console.log('artboards:', boards.join(' | '));
   await page.screenshot({ path: path.join(outDir, 'artifact-03-artboards.png'), fullPage: true });
   await page.locator('.artboard-tile').first().click();
-  await page.getByRole('alert').waitFor({ timeout: 60_000 });
-  const err = await page.getByRole('alert').innerText();
-  console.log('real-file outcome:', err);
-  if (!/claude\.ai viewer/.test(err)) errors.push('unexpected real-file error: ' + err);
+  // No viewer runtime → the text layer + raster heuristics carry the analysis on their own.
+  await page.getByText('TAGGED OBJECT MODEL').waitFor({ timeout: 60_000 });
+  console.log('note:', await page.locator('.master-card .note-amber').innerText().catch(() => '(none)'));
+  const chips = await page.locator('.chip').evaluateAll((cs) => cs.map((c) => `${c.querySelector('.chip-select').value}: ${c.querySelector('.chip-sub')?.textContent ?? '(no text)'}`));
+  console.log('elements:\n  ' + chips.join('\n  '));
+  await page.screenshot({ path: path.join(outDir, 'artifact-04-pdf-analysis.png'), fullPage: true });
+  await page.getByRole('button', { name: /Choose sizes/ }).click();
+  await page.getByRole('button', { name: /Generate adapts/ }).click();
+  await page.getByRole('button', { name: /Download all/ }).waitFor({ timeout: 120_000 });
+  await page.waitForTimeout(300);
+  console.log('pdf summary:', await page.locator('.results-toolbar .subhead').innerText());
+  await page.screenshot({ path: path.join(outDir, 'artifact-05-pdf-results.png'), fullPage: true });
 
   if (errors.length) { console.error('\nARTIFACT SMOKE ERRORS:\n' + errors.join('\n')); process.exitCode = 1; }
   else console.log('\nartifact smoke OK');

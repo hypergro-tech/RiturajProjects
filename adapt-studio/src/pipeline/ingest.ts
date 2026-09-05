@@ -1,13 +1,43 @@
 import * as pdfjsLib from 'pdfjs-dist';
 import workerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
 import { WORKING_EDGE } from './constants';
+import { ARTIFACT_MODE } from './env';
 import type { FontInfo } from './text';
 import type { PixelSampler, TextRun } from './types';
 
-pdfjsLib.GlobalWorkerOptions.workerSrc = workerUrl;
+if (!ARTIFACT_MODE) pdfjsLib.GlobalWorkerOptions.workerSrc = workerUrl;
 
 /** pdf.js needs the 14 standard fonts for PDFs that reference them without embedding; copied to public/ at build. */
 const STANDARD_FONT_DATA_URL = '/pdf-standard-fonts/';
+
+// ---------- artifact build: no network at all ----------
+// The worker module is imported on the main thread (it registers globalThis.pdfjsWorker, which makes
+// pdf.js parse in-process) and the standard fonts come from inlined base64 instead of fetches.
+let inlineFonts: Record<string, string> = {};
+let artifactReady: Promise<void> | null = null;
+function prepareArtifactPdfjs(): Promise<void> {
+  artifactReady ??= (async () => {
+    await import('pdfjs-dist/build/pdf.worker.min.mjs');
+    const { STANDARD_FONTS } = await import('../generated/standardFonts');
+    inlineFonts = STANDARD_FONTS;
+  })();
+  return artifactReady;
+}
+class InlineStandardFontDataFactory {
+  constructor(_opts?: { baseUrl?: string | null }) { /* pdf.js passes baseUrl; unused */ }
+  async fetch({ filename }: { filename: string }): Promise<Uint8Array> {
+    const b64 = inlineFonts[filename];
+    if (!b64) throw new Error(`standard font ${filename} is not bundled`);
+    const bin = atob(b64);
+    const out = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+    return out;
+  }
+}
+const documentParams = (data: ArrayBuffer) =>
+  ARTIFACT_MODE
+    ? { data, standardFontDataUrl: 'inline/', StandardFontDataFactory: InlineStandardFontDataFactory, useWorkerFetch: false }
+    : { data, standardFontDataUrl: STANDARD_FONT_DATA_URL };
 
 export const PARSE_ERROR = 'Could not parse this file. If it is .ai, re-save it with "Create PDF Compatible File" checked, then upload again.';
 export const MAX_ARTBOARDS = 24;
@@ -19,8 +49,9 @@ export interface RenderedArtboard { canvas: HTMLCanvasElement; dimsLabel: string
 /** Stage 0 — open a PDF-compatible .ai / .pdf. Keep the document alive: pdf.js registers its embedded fonts for re-setting text. */
 export async function openKeyVisual(file: File): Promise<OpenedKeyVisual> {
   const data = await file.arrayBuffer();
+  if (ARTIFACT_MODE) await prepareArtifactPdfjs();
   try {
-    const doc = await pdfjsLib.getDocument({ data, standardFontDataUrl: STANDARD_FONT_DATA_URL }).promise;
+    const doc = await pdfjsLib.getDocument(documentParams(data)).promise;
     return { doc, numPages: doc.numPages };
   } catch {
     throw new Error(PARSE_ERROR);

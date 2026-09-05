@@ -59,6 +59,12 @@ docker compose up --build      # http://localhost:8787
 For Vertex AI in Docker, copy the key to `adapt-studio/secrets/sa.json` (the folder is gitignored) and
 uncomment the two Vertex lines in `docker-compose.yml`.
 
+### Option D — hosted on claude.ai, no server at all
+
+`npm run build:artifact` bundles the app into one HTML file (`dist-artifact/adapt-studio.artifact.html`) that runs
+entirely in the claude.ai artifact viewer: the vision pass uses the viewer's own Claude account (it asks once) and
+downloads go through the viewer's save prompt. No API key, no server, shareable by link.
+
 ## 4. Verify
 
 - Open http://localhost:8787 — the upload screen shows an amber banner if no vision provider is configured.

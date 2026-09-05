@@ -1,3 +1,4 @@
+import { ARTIFACT_MODE } from './env';
 import { canvasMeasurer } from './fonts';
 import { runGates, weightGate } from './gates';
 import { planAdapt } from './plan';
@@ -39,8 +40,13 @@ export async function computeAdapt(
     }
     kb = Math.round(blob.size / 1024);
     gates = [...gates.slice(0, 5), weightGate(blob.size, social)];
-    url = URL.createObjectURL(blob);
-    trackUrl?.(url);
+    if (ARTIFACT_MODE) {
+      // The artifact sandbox may not render blob: URLs; previews travel as data URLs, the blob stays for saving.
+      url = canvas.toDataURL(fmt === 'JPG' ? 'image/jpeg' : 'image/png', 0.85);
+    } else {
+      url = URL.createObjectURL(blob);
+      trackUrl?.(url);
+    }
   } else {
     onPhase?.('QA gates');
   }

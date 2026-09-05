@@ -8,6 +8,7 @@
     "dev:web": "vite",
     "dev:api": "tsx watch server/index.ts",
     "build": "tsc -b && vite build && tsc -p tsconfig.server.json",
+    "build:artifact": "node scripts/copy-pdf-fonts.mjs && tsc -b && VITE_ARTIFACT=1 vite build --config vite.artifact.config.ts && node scripts/build-artifact.mjs",
     "start": "NODE_ENV=production node dist-server/index.js",
     "preview": "vite preview",
     "test": "vitest run",
@@ -42,6 +43,7 @@
     "tsx": "^4.23.13",
     "typescript": "~6.0.2",
     "vite": "^8.2.2",
+    "vite-plugin-singlefile": "^2.3.3",
     "vitest": "^5.0.0"
   },
   "description": "Federal Bank creative resize tool — one master key visual, on-brand adapts at every size.",

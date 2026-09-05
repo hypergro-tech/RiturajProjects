@@ -1,4 +1,6 @@
 import { useRef, useState, type DragEvent } from 'react';
+import monogramOnWhite from '../assets/monogram-on-white.png';
+import { ARTIFACT_MODE } from '../pipeline/env';
 
 interface Props {
   error: string;
@@ -18,7 +20,7 @@ export function UploadScreen({ error, visionConfigured, visionProvider, onFiles,
   };
   return (
     <section className="upload">
-      <img src="/assets/monogram-on-white.png" alt="" className="upload-monogram" />
+      <img src={monogramOnWhite} alt="" className="upload-monogram" />
       <div className="upload-heading">
         <h1 className="upload-title">One master. Every format.</h1>
         <p className="upload-lede">
@@ -34,8 +36,8 @@ export function UploadScreen({ error, visionConfigured, visionProvider, onFiles,
       >
         <div className="dropzone-title">Drop your key visual</div>
         <div className="dropzone-hint">
-          .ai (saved with PDF compatibility) or .pdf · first artboard is used · processed locally, nothing leaves your browser except
-          one preview frame sent to the vision model
+          .ai (saved with PDF compatibility) or .pdf · pick an artboard if there are several · processed in your browser; only one
+          preview frame goes to the vision model{ARTIFACT_MODE ? ' (your own Claude account; the viewer asks once)' : ''}
         </div>
         <button type="button" className="btn btn-primary" onClick={() => inputRef.current?.click()}>Browse files</button>
         <input
@@ -49,8 +51,9 @@ export function UploadScreen({ error, visionConfigured, visionProvider, onFiles,
       </div>
       {visionConfigured === false && (
         <div className="note-amber upload-banner" role="status">
-          The vision service is not configured on the server{visionProvider ? ` (${visionProvider})` : ''}: uploaded files will stop at analysis with an error.
-          The demo master still runs on its built-in object model.
+          {ARTIFACT_MODE
+            ? 'Claude is not available in this view, so uploaded files will stop at analysis. Open the page inside claude.ai to analyse real files; the demo master still runs on its built-in object model.'
+            : `The vision service is not configured on the server${visionProvider ? ` (${visionProvider})` : ''}: uploaded files will stop at analysis with an error. The demo master still runs on its built-in object model.`}
         </div>
       )}
       <div className="or-divider"><span />or<span /></div>

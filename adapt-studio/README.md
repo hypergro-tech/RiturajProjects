@@ -53,6 +53,15 @@ Environment (`.env.example`): `ANTHROPIC_API_KEY` **or** `CLAUDE_PROVIDER=vertex
 A `Dockerfile` builds a single production image
 (`docker build -t adapt-studio . && docker run -p 8787:8787 --env-file .env -v /secure/sa.json:/secrets/sa.json adapt-studio`).
 
+## Hosted on claude.ai (no server, no keys)
+
+`npm run build:artifact` produces `dist-artifact/adapt-studio.artifact.html`: the whole app in one file, with pdf.js
+running its worker in-process, the standard fonts and brand assets inlined, previews as data URLs, and two things
+routed through the claude.ai viewer runtime instead of a server: the vision pass (`sample.json` with the preview frame
+as an image, on the viewer's own Claude account; the viewer asks once) and file saves (`downloads.save`). Publish it
+as an artifact with capabilities `{ sample: {}, downloads: true }`. Outside the viewer the same file still runs the demo
+master on its built-in model and says so. `node e2e/artifact-smoke.mjs` boots the bundle headlessly and checks it.
+
 ## How the code is laid out
 
 ```

@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { VISION_SYSTEM, visionPrompt } from './visionPrompt.js';
 
 /** Structured-output schema for the Stage 1 vision pass. Calibration happens client-side in normalizeModel(). */
 export const ObjectModelSchema = z.object({
@@ -30,21 +31,9 @@ export const ObjectModelSchema = z.object({
 
 export type VisionObjectModel = z.infer<typeof ObjectModelSchema>;
 
-export const SYSTEM_PROMPT =
-  'You are the element-analysis stage of an automated ad-adaptation pipeline for a bank\'s marketing team. ' +
-  'You inspect one advertisement key visual and return a tagged object model that downstream code uses to crop, extend or rebuild the layout at other sizes.';
+export const SYSTEM_PROMPT = VISION_SYSTEM;
 
+/** The server enforces the shape with structured output, so the prompt carries only the rules. */
 export function buildPrompt(width: number, height: number): string {
-  return [
-    `Analyze this advertisement key visual for an automated resizing pipeline. The image is ${width}×${height}px at working resolution.`,
-    'Tag every meaningful element (maximum 10) with a tight bounding box expressed as fractions of the image width and height.',
-    'Rules:',
-    '- lines: the exact number of text lines inside the box (0 for non-text). Font size is derived from box height ÷ lines, so be precise.',
-    '- minLegiblePx: headline 24, cta 16, legal 18, body/subhead 14; 0 for non-text.',
-    '- logo, headline and cta are mustKeep. legal is mustKeep when regulated. decorative elements are droppable.',
-    '- regulated = true if any legal, disclaimer, T&C or financial-product text appears.',
-    '- background.extendable only if the background near the edges is a flat colour, simple gradient or blur; list exactly which edges can be extended.',
-    '- text: transcribe text elements verbatim (this is re-set at other sizes, so accuracy matters); shortForm: a 2–4 word variant for headline and cta.',
-    '- notes: the single most important thing to protect when resizing.',
-  ].join('\n');
+  return visionPrompt(width, height, { jsonOnly: false });
 }

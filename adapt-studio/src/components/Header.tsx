@@ -1,3 +1,4 @@
+import wordmarkOnBlue from '../assets/wordmark-on-blue.png';
 import type { Stage } from '../state/types';
 
 const STEPS = ['Master', 'Analysis', 'Sizes', 'Generate', 'Adapts'];
@@ -7,7 +8,7 @@ export function Header({ stage }: { stage: Stage }) {
   const active = STAGE_INDEX[stage];
   return (
     <header className="header">
-      <img src="/assets/wordmark-on-blue.png" alt="Federal Bank" className="header-wordmark" />
+      <img src={wordmarkOnBlue} alt="Federal Bank" className="header-wordmark" />
       <div className="header-divider" />
       <div className="header-title">Adapt Studio</div>
       <div className="spacer" />

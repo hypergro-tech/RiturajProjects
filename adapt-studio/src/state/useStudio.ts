@@ -5,6 +5,7 @@ import { computeAdapt } from '../pipeline/adapt';
 import { CUSTOM_SIZE_LIMITS, DEFAULT_SIZES, WORKING_EDGE } from '../pipeline/constants';
 import { drawDemoMaster, loadDemoImages, type DemoImages } from '../pipeline/demo';
 import { applyDemoText, demoModel } from '../pipeline/demoData';
+import { ARTIFACT_MODE, viewerRuntime } from '../pipeline/env';
 import { ensureFonts, fontAvailable } from '../pipeline/fonts';
 import { artboardThumbs, canvasSampler, makePreviewUrl, openKeyVisual, renderArtboard } from '../pipeline/ingest';
 import { measureContrast, normalizeModel, sampleBgColor } from '../pipeline/model';
@@ -18,6 +19,7 @@ const delay = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const errMsg = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
 export const DEMO_FILE_NAME = 'FedOne_PersonalLoan_KV_1080.ai (demo)';
+const VIEWER_PROVIDER = 'Claude in this viewer';
 
 interface RasterInput {
   canvas: HTMLCanvasElement;
@@ -27,6 +29,8 @@ interface RasterInput {
   demoBoxes?: Box[];
   isDemo: boolean;
 }
+
+interface ViewerDownloads { save(req: { filename: string; data: Blob }): Promise<unknown> }
 
 /**
  * Single state machine: upload → analyzing → (artboards) → analysis → sizes → generating → results.
@@ -43,6 +47,13 @@ export function useStudio() {
 
   useEffect(() => {
     imagesRef.current = loadDemoImages();
+    if (ARTIFACT_MODE) {
+      // The vision pass runs on the viewer's Claude; `use()` resolves null (after ≤10 s) when this view cannot.
+      const rt = viewerRuntime();
+      if (!rt) { patch({ visionConfigured: false, visionProvider: VIEWER_PROVIDER }); return; }
+      void rt.use('sample').then((s) => patch({ visionConfigured: !!s, visionProvider: VIEWER_PROVIDER }));
+      return;
+    }
     fetch('/api/health')
       .then((r) => r.json())
       .then((j: { configured?: boolean; provider?: string }) => patch({ visionConfigured: !!j.configured, visionProvider: j.provider ?? '' }))
@@ -74,7 +85,10 @@ export function useStudio() {
       if (isDemo) model = applyDemoText(model);
     } catch (e) {
       const msg = errMsg(e);
-      if (!isDemo) throw new Error(`Vision pass failed: ${msg}. The file parsed fine — retry in a moment (rate limit is 15 calls/min).`);
+      if (!isDemo) {
+        const hint = ARTIFACT_MODE ? 'The file parsed fine; try again from the upload screen.' : 'The file parsed fine — retry in a moment (rate limit is 15 calls/min).';
+        throw new Error(`Vision pass failed: ${msg}. ${hint}`);
+      }
       model = demoModel(rh, bg, input.demoBoxes);
       note = `Vision pass unavailable (${msg}) — using the precomputed object model for the demo master.`;
     }
@@ -195,17 +209,33 @@ export function useStudio() {
   }, [allSizes, isSelected, patch, state.model]);
 
   // ---------- Stage 7: output ----------
-  const triggerDownload = (href: string, name: string) => {
+  /** Hand a file to the viewer: the claude.ai downloads capability inside the viewer, a plain download elsewhere. */
+  const saveFile = useCallback(async (filename: string, data: Blob) => {
+    const rt = ARTIFACT_MODE ? viewerRuntime() : null;
+    if (rt) {
+      const dl = (await rt.use('downloads')) as ViewerDownloads | null;
+      if (dl) {
+        try {
+          await dl.save({ filename, data });
+        } catch (e) {
+          const code = (e as { code?: string }).code;
+          if (code !== 'declined') console.warn('[adapt-studio] save failed', e);
+        }
+        return;
+      }
+    }
+    const url = URL.createObjectURL(data);
     const a = document.createElement('a');
-    a.href = href;
-    a.download = name;
+    a.href = url;
+    a.download = filename;
     a.click();
-  };
+    setTimeout(() => URL.revokeObjectURL(url), 30_000);
+  }, []);
 
   const download = useCallback((r: AdaptResult) => {
-    if (!r.canDownload) return;
-    triggerDownload(r.url, `FederalBank_${r.W}x${r.H}.${r.fmt.toLowerCase()}`);
-  }, []);
+    if (!r.canDownload || !r.blob) return;
+    void saveFile(`FederalBank_${r.W}x${r.H}.${r.fmt.toLowerCase()}`, r.blob);
+  }, [saveFile]);
 
   /** One ZIP with every exportable adapt (blocked sizes are excluded by construction). */
   const downloadAll = useCallback(async () => {
@@ -216,10 +246,8 @@ export function useStudio() {
     }
     if (!Object.keys(files).length) return;
     const zipped = zipSync(files, { level: 0 });
-    const url = URL.createObjectURL(new Blob([zipped.buffer as ArrayBuffer], { type: 'application/zip' }));
-    triggerDownload(url, 'FederalBank_adapts.zip');
-    setTimeout(() => URL.revokeObjectURL(url), 30_000);
-  }, [state.results]);
+    await saveFile('FederalBank_adapts.zip', new Blob([zipped.buffer as ArrayBuffer], { type: 'application/zip' }));
+  }, [saveFile, state.results]);
 
   const restart = useCallback(() => {
     urlsRef.current.forEach((u) => URL.revokeObjectURL(u));

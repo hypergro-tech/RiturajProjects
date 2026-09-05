@@ -35,3 +35,5 @@ dist-server
 # E2E artefacts
 e2e/screenshots
 public/pdf-standard-fonts
+src/generated
+dist-artifact

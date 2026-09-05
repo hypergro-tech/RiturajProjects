@@ -88,7 +88,9 @@ Single state machine: `upload → analyzing → analysis → sizes → generatin
 ## Assets
 `assets/` (cropped from Federal Bank brand uploads; sourced from the client's brand book):
 - wordmark-on-blue.png (white wordmark + orange underline), wordmark-on-white.png (blue on white)
-- monogram-on-blue.png (white Fortuna wave F), monogram-on-white.png (blue), monogram-orange.png (orange on blue)
+- monogram-on-blue.png (white Fortuna wave F), monogram-on-white.png (blue). The orange-on-blue wave shipped with the
+  handoff was removed from the demo master on the client's instruction (the brand book also keeps the wave away from the
+  wordmark in general ads).
 
 The full brand book PDF stays with the client project (`uploads/Federal Brand Book final.pdf` in the design project); consult it for clearspace and typography rules before production.
 

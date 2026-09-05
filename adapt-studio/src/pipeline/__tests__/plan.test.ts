@@ -58,7 +58,7 @@ describe('planAdapt() on the demo master', () => {
     }
   });
 
-  it('escalates 1.91:1 from EXPAND to a text-set rebuild that passes its own geometry and keeps the visual', () => {
+  it('escalates 1.91:1 from EXPAND to a text-set rebuild that passes its own geometry', () => {
     const { r, gates } = gatesFor(size(1200, 628));
     expect(r.routed.strategy).toBe('EXPAND');
     expect(r.escalations).toHaveLength(1);
@@ -69,7 +69,6 @@ describe('planAdapt() on the demo master', () => {
       expect(r.plan.overflows).toEqual([]);
       expect(r.plan.changes.join(' ')).toMatch(/headline re-set in \d lines? at \d+px/);
       expect(r.plan.changes.join(' ')).toMatch(/legal re-set in 1 line at 20px/);
-      expect(r.plan.changes.join(' ')).toContain('decorative kept');
       expect(r.plan.ops.some((o) => o.kind === 'pill')).toBe(true);
     }
   });

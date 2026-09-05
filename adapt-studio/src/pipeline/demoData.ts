@@ -6,7 +6,7 @@ export interface DemoElement {
   type: ElementType; desc: string;
   /** x, y, w, h as fractions of the 1080 artboard. */
   b: [number, number, number, number];
-  img?: 'wmBlue' | 'waveOrange';
+  img?: 'wmBlue';
   fs?: number; fw?: number; it?: boolean; color?: string; text?: string;
 }
 
@@ -16,7 +16,6 @@ export const DEMO_ELEMENTS: DemoElement[] = [
   { type: 'body', desc: 'Offer subhead', b: [0.10, 0.45, 0.58, 0.062], fs: 30, fw: 500, color: 'rgba(255,255,255,0.92)', text: 'Personal Loan up to ₹25 lakh, approved in 10 minutes.' },
   { type: 'cta', desc: 'Primary action', b: [0.10, 0.555, 0.185, 0.062], fs: 27, text: 'Apply now' },
   { type: 'legal', desc: 'RBI lending disclaimer', b: [0.10, 0.85, 0.58, 0.042], fs: 30, color: 'rgba(255,255,255,0.85)', text: 'Credit at sole discretion of the Bank. T&C apply.' },
-  { type: 'decorative', desc: 'Fortuna wave motif', b: [0.66, 0.34, 0.26, 0.225], img: 'waveOrange' },
 ];
 
 const MIN: Partial<Record<ElementType, number>> = { headline: 24, body: 14, cta: 16, legal: 18 };

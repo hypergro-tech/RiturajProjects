@@ -1,4 +1,3 @@
-import monogramOrange from '../assets/monogram-orange.png';
 import wordmarkOnBlue from '../assets/wordmark-on-blue.png';
 import { DEMO_ELEMENTS } from './demoData';
 import type { Box } from './types';
@@ -7,7 +6,6 @@ const BLUE = '#004BBE', ORANGE = '#FF9C00', NAVY = '#003A8F';
 
 export const DEMO_ASSETS = {
   wmBlue: { src: wordmarkOnBlue, ratio: 219 / 900 },
-  waveOrange: { src: monogramOrange, ratio: 779 / 900 },
 } as const;
 
 export type DemoImages = Record<keyof typeof DEMO_ASSETS, HTMLImageElement>;

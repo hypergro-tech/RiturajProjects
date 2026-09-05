@@ -51,9 +51,9 @@ describe('runGates()', () => {
     const plan: AdaptPlan = { kind: 'SCALE', s: 1, ox: 0, oy: 0, masks: [], keepRects: [rect('logo', 0, 0, 100, 30)], summary: '' };
     expect(byLabel(runGates(plan, model(), W, H, m, false)).Safe).toBe(true);
   });
-  it('returns the fixed blocked pattern for a compliance block', () => {
+  it('returns the fixed blocked pattern when the logo and headline cannot fit', () => {
     const gates = runGates({ kind: 'BLOCKED', blockMsg: 'x' }, model(), W, H, m, false);
-    expect(gates.map((g) => g.pass)).toEqual([true, false, true, true, false, true]);
+    expect(gates.map((g) => g.pass)).toEqual([true, false, true, false, true, true]);
   });
 });
 

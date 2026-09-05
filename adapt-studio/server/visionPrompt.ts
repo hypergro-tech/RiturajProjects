@@ -19,7 +19,7 @@ export const VISION_RULES = [
   'Tag every meaningful element (maximum 10) with a tight bounding box expressed as fractions (0..1) of the image width and height.',
   '- lines: the exact number of text lines inside the box (0 for non-text). Font size is derived from box height ÷ lines, so be precise.',
   '- minLegiblePx: headline 24, cta 16, legal 18, body/subhead 14; 0 for non-text.',
-  '- logo, headline and cta are mustKeep. legal is mustKeep when regulated. decorative elements are droppable.',
+  '- logo, headline and cta are mustKeep. legal and decorative elements are droppable (legal is kept wherever it fits legibly).',
   '- regulated = true if any legal, disclaimer, T&C or financial-product text appears.',
   '- background.extendable only if the background near the edges is a flat colour, simple gradient or blur; list exactly which edges can be extended.',
   '- text: transcribe text elements verbatim (this is re-set at other sizes, so accuracy matters); shortForm: a 2–4 word variant for headline and cta.',

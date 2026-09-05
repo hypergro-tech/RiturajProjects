@@ -36,9 +36,10 @@ describe('normalizeModel()', () => {
   };
   const m = normalizeModel(raw, 2000, '#004bbe');
 
-  it('forces mustKeep on logo/headline/cta/legal regardless of the model output', () => {
+  it('forces mustKeep on logo/headline/cta regardless of the model output; the disclaimer is droppable', () => {
     expect(m.elements.find((e) => e.type === 'logo')?.mustKeep).toBe(true);
-    expect(m.elements.find((e) => e.type === 'legal')?.mustKeep).toBe(true);
+    expect(m.elements.find((e) => e.type === 'legal')?.mustKeep).toBe(false);
+    expect(m.elements.find((e) => e.type === 'legal')?.droppable).toBe(true);
     expect(m.elements.find((e) => e.type === 'product')?.mustKeep).toBe(true); // honoured when the model says so
   });
   it('derives fontPx from box height ÷ lines and fills default minLegiblePx', () => {
@@ -126,7 +127,7 @@ describe('measureContrast()', () => {
 describe('keepUnion() / firstIllegible()', () => {
   const model: ObjectModel = normalizeModel({ elements: [
     { type: 'logo', box: { x: 0.1, y: 0.1, w: 0.2, h: 0.1 } },
-    { type: 'legal', box: { x: 0.5, y: 0.8, w: 0.4, h: 0.05 }, lines: 1 },
+    { type: 'legal', box: { x: 0.5, y: 0.8, w: 0.4, h: 0.05 }, lines: 1, mustKeep: true }, // protected by the model's say-so
     { type: 'decorative', box: { x: 0, y: 0, w: 1, h: 1 } },
   ] }, 1000, '#000');
 

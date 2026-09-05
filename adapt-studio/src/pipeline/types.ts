@@ -172,7 +172,7 @@ export interface Gate { label: string; pass: boolean }
 /** Reads an RGBA block from the master raster. Abstracted so the pipeline stays testable without a DOM canvas. */
 export type PixelSampler = (x: number, y: number, w: number, h: number) => Uint8ClampedArray;
 
-export type StatusKind = 'clean' | 'review' | 'blocked-compliance' | 'blocked-qa';
+export type StatusKind = 'clean' | 'review' | 'blocked-fit' | 'blocked-qa';
 
 export interface AdaptResult {
   W: number; H: number; name: string; dims: string; social: boolean;

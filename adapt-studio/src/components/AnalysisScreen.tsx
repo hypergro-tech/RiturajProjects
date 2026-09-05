@@ -85,7 +85,7 @@ export function AnalysisScreen({ master, model, note, source, hover, onHover, on
           </div>
           <div className="card card-navy">
             <div className="card-label card-label-orange">{regLabel}</div>
-            <div className="card-text-light">Legal line is non-droppable at every size. Sizes that can’t carry it legibly are blocked. Every adapt routes to human review.</div>
+            <div className="card-text-light">The disclaimer is kept wherever it fits legibly and dropped where it cannot — no size is blocked for it. Every adapt routes to human review.</div>
           </div>
         </div>
         <div className="row-end">

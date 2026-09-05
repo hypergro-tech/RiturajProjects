@@ -48,14 +48,15 @@ export function normalizeModel(raw: RawObjectModel, masterRh: number, bgColor: s
       w: Math.max(0.01, clamp01(e.box?.w)), h: Math.max(0.01, clamp01(e.box?.h)),
     };
     const isText = isTextType(type);
-    const forcedKeep = type === 'logo' || type === 'headline' || type === 'cta' || type === 'legal';
+    // the disclaimer is droppable: a rebuild keeps it wherever it fits legibly and drops it otherwise
+    const forcedKeep = type === 'logo' || type === 'headline' || type === 'cta';
     return {
       type,
       desc: String(e.desc ?? type).slice(0, 90),
       box,
       priority: PRIORITY[type] ?? 6,
       mustKeep: forcedKeep ? true : !!e.mustKeep,
-      droppable: type === 'decorative' ? true : !!e.droppable,
+      droppable: type === 'decorative' || type === 'legal' ? true : !!e.droppable,
       minLegiblePx: isText ? Number(e.minLegiblePx) || DEFAULT_MIN_PX[type] || 14 : 0,
       fontPx: isText ? deriveFontPx(box.h * masterRh, e.lines) : 0,
       contrast: 0,

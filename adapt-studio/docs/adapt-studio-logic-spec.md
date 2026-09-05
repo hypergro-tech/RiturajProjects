@@ -141,6 +141,10 @@ Minimum font sizes at output resolution:
 
 ## STAGE 5 — Compliance Layer (BFSI / regulated)
 
+> **Implementation note (client instruction, Sep 2026):** items 1–2 below are no longer enforced. The disclaimer is
+> kept wherever it renders ≥ its floor and dropped where it cannot; no size is blocked for it. Only a size that
+> cannot carry the logo and headline legibly is blocked.
+
 Triggers when `regulated: true` OR client vertical = BFSI.
 
 1. Legal element is NON-droppable at every size.

@@ -31,7 +31,8 @@ export const WEIGHT_LIMIT = { display: 150 * 1024, social: 5 * 1024 * 1024 } as 
 /** Brand book p.20: the wordmark must never render below 20px tall on digital. */
 export const LOGO_MIN_HEIGHT_PX = 20;
 
-export const BLOCK_MESSAGE = 'This size cannot carry the mandatory disclaimer legibly. Requires manual layout or size exclusion.';
+/** Only the logo and headline can block a size now; the disclaimer is kept where it fits and dropped where it cannot. */
+export const BLOCK_MESSAGE = 'This size cannot carry the logo, headline and CTA legibly at their minimum sizes. Requires manual layout or size exclusion.';
 
 export const CUSTOM_SIZE_LIMITS = { min: 50, max: 4000 } as const;
 

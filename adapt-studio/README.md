@@ -3,7 +3,7 @@
 One master key visual (`.ai` saved with PDF compatibility, or `.pdf`) in, on-brand adapts at every target size out.
 Each size is routed through one of four strategies (Scale / Smart Crop / Expand / Recompose) chosen by ratio math,
 executed against a tagged object model produced by a vision pass, and scored by automated QA gates with a BFSI
-compliance layer that can block export entirely. Rebuilt sizes re-set the real text (wrapped, sized to fit,
+compliance layer for human review. Rebuilt sizes re-set the real text (wrapped, sized to fit,
 short-form under pressure) in the master's own fonts. The tool never fakes success: every escalation, fallback and
 block states exactly what happened.
 
@@ -111,7 +111,8 @@ safe-zone gate checks.
    beyond the master's own breaks × 0.88), so copy is only cut under real pressure. Lines are set with a balanced
    wrapper (even measures, sentence ends at line ends, never a lone short word on the last line). Strips (≥ 3:1) are
    one row — logo, headline, CTA on a shared centre line — with the legal line below. The legal line is reserved at
-   its floor first (14 px display, 18 px-equivalent social); if it cannot fit, the size is blocked for compliance.
+   its floor first (14 px display, 18 px-equivalent social); if it cannot fit, the line is dropped and the card says so —
+   the disclaimer never blocks a size (client instruction).
 
 ## Decisions carried over from the prototype
 
@@ -127,6 +128,9 @@ safe-zone gate checks.
 6. Recompose layouts and QA gates share inset constants.
 7. Any failed automated gate withholds the download.
 8. The client vertical is BFSI, so `regulated` is always true; the UI shows whether a disclaimer was actually detected.
+   The spec's "legal is non-droppable, illegible sizes are blocked" rule was dropped on the client's instruction: the
+   disclaimer is kept wherever it fits at its floor and omitted otherwise (the gate chip reads "Legal omitted"). Only a
+   size that cannot carry the logo and headline legibly is blocked.
 9. Escalations are recorded and shown on the result card.
 10. **A fully re-settable master rebuilds instead of cropping or extending.** When every element is text with a spec
     or a logo on a flat field, nothing is lost by rebuilding it on its layout system, and a lot is lost by not doing

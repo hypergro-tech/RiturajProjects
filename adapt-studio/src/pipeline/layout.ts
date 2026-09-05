@@ -308,7 +308,7 @@ export function heuristicModel(blocks: TextBlock[], components: Component[], bac
     else type = b.fontPx >= headline.fontPx * 0.55 ? 'subhead' : 'body';
     elements.push({
       type, desc: `${type} · ${b.lines[0].slice(0, 40)}${b.lines[0].length > 40 ? '…' : ''}`, box,
-      mustKeep: ['logo', 'headline', 'cta', 'legal'].includes(type), droppable: type === 'body' || type === 'subhead',
+      mustKeep: ['logo', 'headline', 'cta'].includes(type), droppable: type === 'body' || type === 'subhead' || type === 'legal',
       minLegiblePx: type === 'headline' ? 24 : type === 'cta' ? 16 : type === 'legal' ? 18 : 14,
       lines: type === 'logo' ? 0 : b.lines.length,
       text: type === 'logo' ? '' : text,
@@ -344,7 +344,7 @@ export function heuristicModel(blocks: TextBlock[], components: Component[], bac
     elements: elements.slice(0, 10),
     background: { ...background, color: bgHex },
     regulated,
-    notes: regulated ? 'Keep the legal line legible and the logo uncropped.' : 'Keep the logo uncropped and the headline readable.',
+    notes: regulated ? 'Keep the disclaimer where it fits and the logo uncropped.' : 'Keep the logo uncropped and the headline readable.',
   };
 }
 

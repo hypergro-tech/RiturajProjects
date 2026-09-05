@@ -49,8 +49,8 @@ export function demoModel(masterRh: number, bgColor: string, measuredBoxes?: Box
     desc: d.desc,
     box: measuredBoxes?.[i] ?? { x: d.b[0], y: d.b[1], w: d.b[2], h: d.b[3] },
     priority: PRIORITY[d.type],
-    mustKeep: ['logo', 'headline', 'cta', 'legal'].includes(d.type),
-    droppable: ['decorative', 'body'].includes(d.type),
+    mustKeep: ['logo', 'headline', 'cta'].includes(d.type),
+    droppable: ['decorative', 'body', 'legal'].includes(d.type),
     minLegiblePx: MIN[d.type] ?? 0,
     fontPx: d.fs ? d.fs * (masterRh / 1080) : 0,
     contrast: 0,
@@ -63,7 +63,7 @@ export function demoModel(masterRh: number, bgColor: string, measuredBoxes?: Box
     background: { desc: 'Flat brand-blue field', extendable: true, extendDirections: ['left', 'right', 'top', 'bottom'], complexity: 'simple', color: bgColor },
     regulated: true,
     detectedRegulated: true,
-    notes: 'Protect the legal line; CTA orange is exclusive.',
+    notes: 'Keep the disclaimer where it fits; CTA orange is exclusive.',
   };
 }
 

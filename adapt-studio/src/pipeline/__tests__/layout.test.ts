@@ -96,7 +96,8 @@ describe('heuristicModel() via analyzeLayout()', () => {
     expect(byType.body?.text).toContain('Personal Loan');
     expect(byType.cta?.text).toBe('Apply now');
     expect(byType.legal?.text).toContain('T&C apply');
-    expect(byType.legal?.mustKeep).toBe(true);
+    expect(byType.legal?.mustKeep).toBe(false);
+    expect(byType.legal?.droppable).toBe(true);
     expect(a.model.regulated).toBe(true);
   });
   it('takes the corner-hugging wide artwork as the logo and the largest artwork as the product', () => {

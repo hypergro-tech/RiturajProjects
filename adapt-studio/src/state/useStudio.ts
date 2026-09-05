@@ -257,7 +257,7 @@ export function useStudio() {
       }
       results.push(res);
       const tone = res.blocked || res.status === 'blocked-qa' ? 'bad' : res.status === 'clean' ? 'ok' : 'warn';
-      upd({ pct: 100, phase: res.blocked ? 'Blocked — compliance' : res.statusLabel, tone, failed: res.blocked || res.status === 'blocked-qa' });
+      upd({ pct: 100, phase: res.blocked ? 'Blocked — cannot fit' : res.statusLabel, tone, failed: res.blocked || res.status === 'blocked-qa' });
       await delay(80);
     }
     await delay(500);

@@ -55,7 +55,7 @@ export async function computeAdapt(
   const qaFail = !blocked && gates.some((g) => !g.pass);
   const strategy: Strategy = plan.kind === 'BLOCKED' ? 'RECOMPOSE' : plan.kind;
   let status: StatusKind, statusLabel: string;
-  if (blocked) { status = 'blocked-compliance'; statusLabel = 'Export blocked — compliance'; }
+  if (blocked) { status = 'blocked-fit'; statusLabel = 'Export blocked — cannot fit'; }
   else if (qaFail) { status = 'blocked-qa'; statusLabel = 'Export blocked — failed QA gates'; }
   else if (strategy === 'EXPAND') { status = 'review'; statusLabel = 'Review required — extended pixels'; }
   else if (strategy === 'RECOMPOSE') { status = 'review'; statusLabel = 'Rebuilt — review required'; }
@@ -63,7 +63,7 @@ export async function computeAdapt(
 
   const overflowNote = plan.kind === 'RECOMPOSE' && plan.overflows.length ? ` ${plan.overflows.join('; ')}.` : '';
   const summary = blocked
-    ? 'Legal cannot render at its minimum size within this canvas. Not exported.'
+    ? 'The logo, headline and CTA cannot all render legibly within this canvas. Not exported.'
     : qaFail ? `${plan.summary}${overflowNote} Export withheld until the failed gate is resolved.` : plan.summary;
 
   return {

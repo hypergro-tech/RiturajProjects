@@ -16,9 +16,10 @@ export function weightGate(bytes: number, social: boolean): Gate {
  */
 export function runGates(plan: AdaptPlan | BlockedPlan, model: ObjectModel, W: number, H: number, m: Margins, social: boolean): Gate[] {
   if (plan.kind === 'BLOCKED') {
+    // only the logo and headline can block a size: neither fits legibly
     return [
       mkGate('Safe zone', true), mkGate('Min font', false), mkGate('Contrast', true),
-      mkGate('Logo', true), mkGate('Legal legible', false), mkGate('Weight', true),
+      mkGate('Logo', false), mkGate('Legal legible', true), mkGate('Weight', true),
     ];
   }
   const eps = 2;
@@ -29,8 +30,10 @@ export function runGates(plan: AdaptPlan | BlockedPlan, model: ObjectModel, W: n
     ? true
     : kr.every((r) => r.x >= W * m.l - eps && r.y >= H * m.t - eps && r.x + r.w <= W * (1 - m.r) + eps && r.y + r.h <= H * (1 - m.b) + eps);
   const minOk = kr.filter((r) => r.fontPx && r.min).every((r) => r.fontPx >= r.min - 0.5);
+  // The disclaimer is optional: legible when present, omitted when the rebuild had no room for it.
   const legalR = kr.find((r) => r.type === 'legal');
   const legalOk = !legalR || legalR.fontPx >= legalMin(W, social) - 0.5;
+  const legalLabel = legalR ? 'Legal legible' : plan.kind === 'RECOMPOSE' && model.elements.some((e) => e.type === 'legal') ? 'Legal omitted' : 'Legal legible';
   const logoR = kr.find((r) => r.type === 'logo');
   const logoOk = !!logoR
     && logoR.x >= -eps && logoR.x + logoR.w <= W + eps && logoR.y >= -eps && logoR.y + logoR.h <= H + eps
@@ -40,6 +43,6 @@ export function runGates(plan: AdaptPlan | BlockedPlan, model: ObjectModel, W: n
   const cLabel = texts.length ? `Contrast ${Math.min(...texts.map((e) => e.contrast)).toFixed(1)}:1` : 'Contrast n/a';
   return [
     mkGate('Safe zone', inSafe), mkGate('Min font', minOk), mkGate(cLabel, contrastOk),
-    mkGate('Logo', logoOk), mkGate('Legal legible', legalOk), mkGate('Weight', true),
+    mkGate('Logo', logoOk), mkGate(legalLabel, legalOk), mkGate('Weight', true),
   ];
 }

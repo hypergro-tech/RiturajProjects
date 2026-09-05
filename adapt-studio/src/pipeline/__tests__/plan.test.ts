@@ -122,8 +122,24 @@ describe('planAdapt() on the demo master (flat, fully re-settable)', () => {
     }
   });
 
-  it('blocks 320×50: the disclaimer cannot sit on one 14px line in 296px', () => {
-    expect(planAdapt(master, model, size(320, 50), opts).plan.kind).toBe('BLOCKED');
+  it('never blocks a size for the disclaimer: 320×100 drops it, rebuilds as one row and exports', () => {
+    const { r, gates } = gatesFor({ name: 'Large mobile banner', w: 320, h: 100 });
+    expect(r.plan.kind).toBe('RECOMPOSE');
+    expect(allPass(gates), JSON.stringify(gates)).toBe(true);
+    expect(gates[4]).toEqual({ label: 'Legal omitted', pass: true });
+    if (r.plan.kind === 'RECOMPOSE') {
+      expect(r.plan.dropped).toContain('legal');
+      expect(r.plan.changes.join(' ')).toMatch(/legal dropped \(/);
+      expect(r.plan.keepRects.map((k) => k.type).sort()).toEqual(['cta', 'headline', 'logo']);
+      const logo = r.plan.keepRects.find((k) => k.type === 'logo')!;
+      expect(logo.h).toBeGreaterThanOrEqual(20);
+    }
+  });
+
+  it('blocks 320×50 only because logo, headline and CTA cannot all fit a 34px row — not for the disclaimer', () => {
+    const r = planAdapt(master, model, size(320, 50), opts);
+    expect(r.plan.kind).toBe('BLOCKED');
+    if (r.plan.kind === 'BLOCKED') expect(r.plan.blockMsg).not.toMatch(/disclaimer/);
   });
 
   it('uses the format-dependent legal floor: 14px on display, ≥ 20px on a 1200-wide social size', () => {
@@ -179,27 +195,31 @@ describe('planAdapt() on a photo master (ratio bands apply)', () => {
     }
   });
 
-  it('walks SMART_CROP → EXPAND → RECOMPOSE for 300×250', () => {
+  it('escalates SMART_CROP to a rebuild for 300×250 when the cropped headline would fall below its floor', () => {
     const { r, gates } = gatesFor(size(300, 250), photo);
     expect(r.routed.strategy).toBe('SMART_CROP');
-    expect(r.escalations[0]).toBe('Smart crop: protected elements exceed the target safe zone');
-    expect(r.escalations[1]).toMatch(/^Expand: (headline|cta|legal) renders at \d+px, below its \d+px floor$/);
+    expect(r.escalations[0]).toMatch(/^Smart crop: headline renders at \d+px, below its 24px floor$/);
     expect(r.plan.kind).toBe('RECOMPOSE');
     expect(allPass(gates)).toBe(true);
   });
 });
 
 describe('planAdapt() without text (raster-patch fallback)', () => {
-  it('still blocks sizes whose patch-scaled disclaimer cannot fit, exactly like the prototype', () => {
+  it('drops the disclaimer patch where it cannot fit at its floor instead of blocking the size', () => {
     for (const [w, h] of [[300, 250], [320, 50], [160, 600], [300, 600]] as const) {
-      expect(planAdapt(master, patchOnly, size(w, h), opts).plan.kind, `${w}x${h}`).toBe('BLOCKED');
+      const r = planAdapt(master, patchOnly, size(w, h), opts);
+      expect(r.plan.kind, `${w}x${h}`).toBe('RECOMPOSE');
+      if (r.plan.kind === 'RECOMPOSE') expect(r.plan.dropped, `${w}x${h}`).toContain('legal');
     }
   });
-  it('rebuilds the leaderboard from patches but the gates withhold it (2-line headline patch overflows the row)', () => {
-    const { r, gates } = gatesFor(size(728, 90), patchOnly);
+  it('rebuilds the leaderboard from patches by giving the 2-line headline patch the whole row and dropping the disclaimer', () => {
+    const r = planAdapt(master, patchOnly, size(728, 90), opts);
     expect(r.plan.kind).toBe('RECOMPOSE');
-    expect(gates.slice(0, 5).some((g) => !g.pass)).toBe(true);
-    if (r.plan.kind === 'RECOMPOSE') expect(r.plan.overflows.length).toBeGreaterThan(0);
+    if (r.plan.kind === 'RECOMPOSE') {
+      expect(r.plan.dropped).toContain('legal');
+      expect(r.plan.changes.join(' ')).toContain('legal dropped (the row needs the height)');
+      expect(r.plan.overflows).toEqual([]);
+    }
   });
 });
 

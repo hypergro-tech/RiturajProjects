@@ -18,7 +18,7 @@ export function StrategyBadge({ strategy, blocked = false, planned = false }: { 
 const STATUS_TINT: Record<StatusKind, [string, string]> = {
   clean: ['#E3ECFB', '#004BBE'],
   review: ['#FFF0DB', '#8A5A00'],
-  'blocked-compliance': ['#FDECEC', '#B4231F'],
+  'blocked-fit': ['#FDECEC', '#B4231F'],
   'blocked-qa': ['#FDECEC', '#B4231F'],
 };
 

@@ -1,6 +1,6 @@
 import { BLOCK_MESSAGE, LOGO_MIN_HEIGHT_PX } from './constants';
 import { deriveLayoutSystem } from './layout';
-import { legalMin } from './safeZones';
+import { DISPLAY_EDGE_PX, legalMin } from './safeZones';
 import type {
   BlockedPlan, ElementType, KeepRect, LayoutOp, Margins, MasterInfo, ObjectModel, PlanOptions,
   RecomposePlan, TaggedElement, TextMeasurer, TextSpec,
@@ -150,8 +150,10 @@ export function planRecompose(master: MasterInfo, model: ObjectModel, W: number,
   const src = (e: TaggedElement) => srcRect(e, rw, rh);
 
   // Insets: the master's own inset on the short edge (never under 12px), or the safe margin when that is larger.
+  const isStrip = W / H >= 3;
   const padX = Math.max(12, Math.round(Math.min(W, H) * clamp(sys.inset.x, 0.06, 0.12)));
-  const padY = Math.max(12, Math.round(Math.min(W, H) * clamp(sys.inset.y, 0.06, 0.12)));
+  // a strip has no height to spare: its vertical inset is the safe edge (8px) or 10% of the height
+  const padY = isStrip ? Math.max(DISPLAY_EDGE_PX, Math.round(H * 0.1)) : Math.max(12, Math.round(Math.min(W, H) * clamp(sys.inset.y, 0.06, 0.12)));
   const px = Math.max(padX, Math.ceil(W * Math.max(m.l, m.r)));
   const padT = Math.max(padY, Math.ceil(H * m.t)), padB = Math.max(padY, Math.ceil(H * m.b));
   const contentW = W - 2 * px, availH = H - padT - padB;
@@ -170,9 +172,7 @@ export function planRecompose(master: MasterInfo, model: ObjectModel, W: number,
   const changes: string[] = [];
   const overflows: string[] = [];
   const dropped: ElementType[] = [];
-  const BLOCK: BlockedPlan = { kind: 'BLOCKED', blockMsg: BLOCK_MESSAGE };
   const al: Align = sys.align;
-  const isStrip = W / H >= 3;
   const narrow = W < 220, compact = H <= 300, tall = H / W >= 1.5;
   const hlMaxLines = narrow || tall ? 4 : compact ? 2 : 3;
   const bodyMaxLines = narrow ? 4 : compact ? 2 : 3;
@@ -216,13 +216,15 @@ export function planRecompose(master: MasterInfo, model: ObjectModel, W: number,
     return { kind: 'patch', e: logo, k, w: sw * k, h: sh * k, px: 0 };
   };
 
-  const setCta = (ctaPx: number, maxW: number): Block | null => {
+  const setCta = (ctaPx: number, maxW: number, maxH = Infinity): Block | null => {
     if (!cta) return null;
     const spec = cta.text;
     if (!spec) return setText(cta, ctaPx, maxW, 1, 'full', ctaFloor);
     const pill = !!spec.bgColor;
     const padX = pill ? ctaPx * sys.pill.padEm : 0;
-    const h = pill ? ctaPx * sys.pill.ratio : ctaPx * spec.lineHeight;
+    // the master's pill proportion, squashed (never below 1.6 em) when the row cannot take it
+    const ratio = Math.max(1.6, Math.min(sys.pill.ratio, maxH / ctaPx));
+    const h = pill ? ctaPx * ratio : ctaPx * spec.lineHeight;
     const tryText = (t: string, used: Variant): PillBlock | null => {
       const textW = measure(spec, ctaPx, t);
       if (textW + 2 * padX > maxW + 0.5) return null;
@@ -231,7 +233,7 @@ export function planRecompose(master: MasterInfo, model: ObjectModel, W: number,
     return tryText(spec.content, 'full') ?? (spec.shortForm ? tryText(spec.shortForm, 'short') : null);
   };
 
-  /** Legal at the system size, else at its floor; null when it cannot fit at the floor → compliance block. */
+  /** Legal at the system size, else at its floor; null when it cannot fit at the floor → the line is dropped. */
   const setLegal = (legalPx: number, maxW: number, maxLines: number): Block | null => {
     if (!legal) return null;
     const spec = legal.text;
@@ -300,51 +302,65 @@ export function planRecompose(master: MasterInfo, model: ObjectModel, W: number,
   return planStack();
 
   // ---------- Horizontal strip: one row — logo | headline | CTA — on a shared centre line, legal below ----------
-  function planStrip(): RecomposePlan | BlockedPlan {
-    const legalB = setLegal(lMin, contentW, legalMaxLines);
-    if (!legalB) return BLOCK;
-    const rowGap = clamp(Math.round(H * 0.05), 3, 10), hGap = clamp(Math.round(W * 0.025), 10, 32);
-    const rowH = availH - legalB.h - rowGap;
-    if (rowH < LOGO_MIN_HEIGHT_PX) return BLOCK;
-    const twoLines = rowH >= 2 * hlFloor * 1.15;
-    const hMax = Math.min(hCap, Math.floor(rowH / (twoLines ? 2.3 : (headline?.text?.lineHeight ?? 1.15))));
+  interface StripPick { t: TypeScale; hl: Block | null; lg: PatchBlock | null; ct: Block | null; used: Variant; score: number; floor: number }
 
-    let pick: { t: TypeScale; hl: Block; lg: PatchBlock | null; ct: Block | null; used: Variant; score: number } | null = null;
-    for (const variant of ['full', 'short'] as const) {
-      for (let h = hMax; h >= hlFloor; h--) {
-        if (pick && h <= pick.score) break;
-        const t = typeAt(h);
-        const lg = setLogo(Math.min(t.logoH, rowH), contentW * 0.3);
-        const ct = cta ? setCta(Math.min(t.ctaPx, Math.floor(rowH / sys.pill.ratio)), contentW * 0.3) : null;
-        if (cta && !ct) continue;
-        if (ct && ct.h > rowH + 0.5) continue;
-        const hlW = contentW - (lg ? lg.w + hGap : 0) - (ct ? ct.w + hGap : 0);
-        const hl = headline ? setText(headline, h, hlW, twoLines ? 2 : 1, variant, hlFloor) : null;
-        if (headline && !hl) continue;
-        if (hl && hl.h > rowH + 0.5) continue;
-        const score = scoreOf(h, hl, variant, false) / (body ? 0.6 : 1);
-        if (!pick || score > pick.score) pick = { t, hl: hl as Block, lg, ct, used: variant, score };
+  function planStrip(): RecomposePlan | BlockedPlan {
+    const rowGap = clamp(Math.round(H * 0.05), 3, 10), hGap = clamp(Math.round(W * 0.025), 10, 32);
+    const legalB = setLegal(lMin, contentW, legalMaxLines);
+
+    /** The main row — logo | headline | CTA — solved for a given row height; null when nothing fits. */
+    const solveRow = (rowH: number): StripPick | null => {
+      if (rowH < LOGO_MIN_HEIGHT_PX) return null;
+      // a strip has its own headline floor: 55% of the row, never under 16px, never above the element's floor —
+      // and a narrow strip (mobile banners) reads at 16px, the size those formats are designed for
+      const floor = clamp(Math.round(rowH * 0.55), 16, W < 400 ? 16 : hlFloor);
+      const twoLines = rowH >= 2 * floor * 1.15;
+      const hMax = Math.max(floor, Math.min(hCap, Math.floor(rowH / (twoLines ? 2.3 : (headline?.text?.lineHeight ?? 1.15)))));
+      let pick: StripPick | null = null;
+      for (const variant of ['full', 'short'] as const) {
+        for (let h = hMax; h >= floor; h--) {
+          if (pick && h <= pick.score) break;
+          const t = typeAt(h);
+          const lg = setLogo(Math.min(t.logoH, rowH), contentW * 0.3);
+          if (logo && lg && lg.h < LOGO_MIN_HEIGHT_PX - 0.5) return null; // even the 20px minimum is too wide for this row
+          const ct = cta ? setCta(Math.min(t.ctaPx, Math.max(ctaFloor, Math.floor(rowH / sys.pill.ratio))), contentW * 0.3, rowH) : null;
+          if (cta && !ct) continue;
+          if (ct && ct.h > rowH + 0.5) continue;
+          const hlW = contentW - (lg ? lg.w + hGap : 0) - (ct ? ct.w + hGap : 0);
+          const hl = headline ? setText(headline, h, hlW, twoLines ? 2 : 1, variant, floor) : null;
+          if (headline && !hl) continue;
+          if (hl && hl.h > rowH + 0.5) continue;
+          const score = scoreOf(h, hl, variant, false) / (body ? 0.6 : 1);
+          if (!pick || score > pick.score) pick = { t, hl, lg, ct, used: variant, score, floor };
+        }
       }
-    }
-    if (!pick) {
-      // Nothing fits: set everything at the floor so the gates report exactly what overflows.
-      const t = typeAt(hlFloor);
-      const lg = setLogo(Math.max(LOGO_MIN_HEIGHT_PX, Math.min(t.logoH, rowH)), contentW * 0.3);
-      const ct = setCta(t.ctaPx, contentW * 0.4);
-      const hlW = Math.max(40, contentW - (lg ? lg.w + hGap : 0) - (ct ? ct.w + hGap : 0));
-      const hl = headline ? setText(headline, hlFloor, hlW, 2, headline.text?.shortForm ? 'short' : 'full', 0) ?? setText(headline, hlFloor, contentW, 4, 'full', 0) : null;
-      pick = { t, hl: hl as Block, lg, ct, used: 'short', score: 0 };
-      if (hl) overflows.push(`headline does not fit the strip at its ${hlFloor}px floor`);
-    }
-    const { hl, lg, ct } = pick;
+      return pick;
+    };
+
+    // with the disclaimer on its own line first; without it when the main row needs the height
+    let withLegal = legalB ? solveRow(availH - legalB.h - rowGap) : null;
+    let pick = withLegal;
+    if (!pick) { withLegal = null; pick = solveRow(availH); }
+    if (!pick) return { kind: 'BLOCKED', blockMsg: BLOCK_MESSAGE };
+    const rowH = withLegal && legalB ? availH - legalB.h - rowGap : availH;
+
+    const { hl, lg, ct, floor } = pick;
     const cy = padT + rowH / 2;
     let x = px;
     if (lg) { place(lg, { x, y: 0, w: lg.w, h: rowH }, cy - lg.h / 2, 'left'); describe('logo', lg); x += lg.w + hGap; }
     if (ct) place(ct, { x: W - px - ct.w, y: 0, w: ct.w, h: rowH }, cy - ct.h / 2, 'left');
-    if (hl) { place(hl, { x, y: 0, w: W - px - (ct ? ct.w + hGap : 0) - x, h: rowH }, cy - hl.h / 2, 'left'); describe('headline', hl); }
+    if (hl) {
+      place(hl, { x, y: 0, w: W - px - (ct ? ct.w + hGap : 0) - x, h: rowH }, cy - hl.h / 2, 'left');
+      describe('headline', hl);
+      if (floor < hlFloor) {
+        const kr = keepRects.find((k) => k.type === 'headline');
+        if (kr) kr.min = floor;
+        changes.push(`headline floor ${floor}px for a ${H}px strip`);
+      }
+    }
     if (ct) describe('CTA', ct);
-    place(legalB, { x: px, y: 0, w: contentW, h: legalB.h }, H - padB - legalB.h, 'left');
-    describe('legal', legalB);
+    if (withLegal && legalB) { place(legalB, { x: px, y: 0, w: contentW, h: legalB.h }, H - padB - legalB.h, 'left'); describe('legal', legalB); }
+    else dropIf(legal, legalB ? 'the row needs the height' : `no room at its ${lMin}px floor`);
     dropIf(body, 'no room in a strip');
     dropIf(visual, 'no room in a strip');
     return finish('Rebuilt on the layout system as a single row');
@@ -362,8 +378,8 @@ export function planRecompose(master: MasterInfo, model: ObjectModel, W: number,
     const textX = sideVisual && sys.visualPos === 'left' ? px + visualW + hGap : px;
     const textArea: Area = { x: textX, y: padT, w: textW, h: availH };
 
-    // legal first: at the floor it decides whether this size can exist at all
-    if (legal && !setLegal(lMin, textW, legalMaxLines)) return BLOCK;
+    // the disclaimer is kept wherever it fits at its floor and dropped where it cannot; it never blocks a size
+    const legalFits = !!legal && !!setLegal(lMin, textW, legalMaxLines);
     const logoAtTop = sys.logoCorner.startsWith('t');
     const logoMaxW = narrow ? textW : textW * 0.6;
 
@@ -377,8 +393,8 @@ export function planRecompose(master: MasterInfo, model: ObjectModel, W: number,
       if (withBody && body && !bd) return null;
       const ct = setCta(t.ctaPx, textW);
       if (cta && !ct) return null;
-      const lgl = setLegal(t.legalPx, textW, legalMaxLines);
-      if (legal && !lgl) return null;
+      const lgl = legalFits ? setLegal(t.legalPx, textW, legalMaxLines) : null;
+      if (legalFits && !lgl) return null;
       // stack order: [logo] headline body cta [logo at bottom] legal
       const blocks = logoAtTop ? [lg, hl, bd, ct, null, lgl] : [null, hl, bd, ct, lg, lgl];
       const gapEms = [sys.gaps.logo, sys.gaps.headline, sys.gaps.body, sys.gaps.cta, sys.gaps.logo];
@@ -420,7 +436,7 @@ export function planRecompose(master: MasterInfo, model: ObjectModel, W: number,
       const lg = setLogo(t.logoH, logoMaxW);
       const hl = headline ? setText(headline, hlFloor, textW, 6, headline.text?.shortForm ? 'short' : 'full', 0) : null;
       const ct = setCta(t.ctaPx, textW) ?? (cta ? setText(cta, ctaFloor, textW, 1, 'full', 0) : null);
-      const lgl = setLegal(lMin, textW, 6);
+      const lgl = legalFits ? setLegal(lMin, textW, 6) : null;
       const blocks = logoAtTop ? [lg, hl, null, ct, null, lgl] : [null, hl, null, ct, lg, lgl];
       const minGap = Math.max(6, Math.round(hlFloor * 0.35));
       best = { t, blocks, gaps: [minGap, minGap, 0, minGap, minGap], slack: 0, score: 0, withBody: false, variant: 'short' };
@@ -450,6 +466,7 @@ export function planRecompose(master: MasterInfo, model: ObjectModel, W: number,
     const tailTop = y; // free space starts here
     let legalY = H - padB - (lgl ? lgl.h : 0);
     if (lgl) { place(lgl, textArea, legalY, al); describe('legal', lgl); }
+    else if (legal) dropIf(legal, `no room at its ${lMin}px floor`);
     if (lgBot) {
       const ly = (lgl ? legalY - gaps[4] : H - padB) - lgBot.h;
       place(lgBot, textArea, ly, logoAlign(false)); describe('logo', lgBot);

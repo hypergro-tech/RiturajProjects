@@ -1,0 +1,256 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Wishly TikTok – Lena</title>
+<link rel="stylesheet" href="fonts/fonts.css">
+<style>
+  :root{--teal:#173B41;--coral:#EC4F63;--coral2:#F47B52;--gold:#FFC56B;--cream:#FDF6EE;--ink:#173B41}
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{width:1080px;height:1920px;overflow:hidden;background:#000}
+  body{font-family:'Inter',sans-serif;-webkit-font-smoothing:antialiased}
+  #stage{position:absolute;inset:0;overflow:hidden;background:#000}
+  .shot{position:absolute;inset:0;overflow:hidden;opacity:0}
+  .shot img{position:absolute;transform-origin:0 0;will-change:transform}
+  .shade{position:absolute;inset:0;pointer-events:none;
+    background:linear-gradient(180deg,rgba(0,0,0,.38) 0%,rgba(0,0,0,0) 26%,rgba(0,0,0,0) 48%,rgba(0,0,0,.55) 78%,rgba(0,0,0,.7) 100%)}
+  #vignette{position:absolute;inset:0;background:radial-gradient(ellipse at 50% 45%,rgba(0,0,0,0) 55%,rgba(0,0,0,.35) 100%);z-index:5}
+  #leak{position:absolute;inset:-200px;z-index:6;mix-blend-mode:screen;opacity:0;
+    background:radial-gradient(circle at 20% 20%,rgba(255,170,90,.75),rgba(255,120,90,0) 45%),radial-gradient(circle at 85% 70%,rgba(255,90,120,.55),rgba(255,90,120,0) 40%)}
+  #flash{position:absolute;inset:0;background:#fff;opacity:0;z-index:7}
+  #grain{position:absolute;inset:-100px;z-index:8;opacity:.07;mix-blend-mode:overlay}
+
+  /* hook */
+  #hook{position:absolute;left:70px;right:150px;top:1080px;z-index:20;opacity:0}
+  .tkbox{display:inline;font-family:'Inter Tight';font-weight:800;font-size:84px;line-height:1.32;letter-spacing:-0.02em;color:var(--ink);background:#fff;
+    box-decoration-break:clone;-webkit-box-decoration-break:clone;padding:4px 22px;border-radius:18px}
+  #soundon{margin-top:44px;display:inline-flex;align-items:center;gap:14px;background:rgba(0,0,0,.55);color:#fff;font-weight:700;font-size:34px;padding:16px 26px;border-radius:40px}
+
+  /* lyric captions */
+  #lyric{position:absolute;left:70px;right:150px;top:1120px;z-index:20;text-align:left}
+  #lyric .w{display:inline-block;font-family:'Inter Tight';font-weight:800;font-size:96px;line-height:1.08;letter-spacing:-0.03em;color:#fff;margin-right:22px;
+    text-shadow:0 4px 0 rgba(0,0,0,.25),0 6px 30px rgba(0,0,0,.55);opacity:0;transform-origin:50% 80%}
+  #lyric .w.hl{color:var(--gold)}
+  #lyric .w.serif{font-family:'Fraunces';font-style:italic;font-weight:600;letter-spacing:-0.01em}
+
+  /* receipts */
+  #receipts{position:absolute;left:60px;top:300px;z-index:20;display:flex;flex-direction:column;gap:18px;align-items:flex-start}
+  #rlabel{font-weight:800;font-size:26px;letter-spacing:.2em;color:#fff;text-shadow:0 2px 12px rgba(0,0,0,.6);opacity:0;margin-bottom:2px}
+  .chip{display:flex;align-items:center;gap:16px;background:#fff;color:var(--ink);font-weight:700;font-size:38px;padding:16px 30px 16px 18px;border-radius:44px;
+    box-shadow:0 10px 30px rgba(0,0,0,.25);opacity:0}
+  .chip i{width:52px;height:52px;border-radius:50%;background:var(--coral);display:flex;align-items:center;justify-content:center;flex:none}
+
+  /* now playing tag */
+  #np{position:absolute;left:60px;top:150px;z-index:20;display:flex;align-items:center;gap:16px;background:rgba(0,0,0,.42);backdrop-filter:blur(6px);color:#fff;
+    padding:14px 26px 14px 16px;border-radius:40px;font-size:28px;font-weight:600;opacity:0}
+  #np .disc{width:50px;height:50px;border-radius:50%;background:conic-gradient(var(--coral),var(--gold),var(--coral2),var(--coral));display:flex;align-items:center;justify-content:center}
+  #np .disc b{width:14px;height:14px;border-radius:50%;background:#111}
+  #np small{display:block;font-size:22px;opacity:.75;font-weight:500}
+
+  /* mid text */
+  .mid{position:absolute;left:70px;right:150px;z-index:20;opacity:0}
+
+  /* form card */
+  #form{position:absolute;left:90px;width:780px;top:820px;background:#fff;border-radius:40px;padding:38px 40px;z-index:20;opacity:0;box-shadow:0 30px 80px rgba(0,0,0,.35)}
+  #form .row{display:flex;justify-content:space-between;align-items:center;padding:16px 0;border-bottom:2px solid #F1E9DF;font-size:32px;color:var(--ink);opacity:0}
+  #form .row:last-child{border:none}
+  #form .row span{color:#6B7B7E;font-weight:600;font-size:26px;letter-spacing:.06em}
+  #form .row b{font-weight:700}
+  #form .head{display:flex;align-items:center;gap:14px;font-family:'Inter Tight';font-weight:800;font-size:40px;color:var(--ink);margin-bottom:10px;letter-spacing:-0.03em}
+
+  /* end card */
+  #end{position:absolute;inset:0;background:var(--teal);z-index:30;opacity:0;color:#fff;overflow:hidden}
+  #end .b{position:absolute;border-radius:50%}
+  #end h1{font-family:'Inter Tight';font-weight:800;font-size:150px;letter-spacing:-0.045em;line-height:.95}
+  #end .serif{font-family:'Fraunces';font-style:italic;font-weight:500;color:var(--gold);font-size:172px;letter-spacing:-0.02em;line-height:1.05;display:block}
+  .r{opacity:0}
+  .logo{display:flex;align-items:center;gap:14px;font-family:'Inter Tight';font-weight:800;letter-spacing:-0.04em;color:#fff}
+  .logo .dot{color:var(--coral)}
+</style>
+</head>
+<body>
+<div id="stage">
+  <div class="shot" id="sh-party"><img src="assets/party.jpg" data-w="3000" data-h="1688"><div class="shade"></div></div>
+  <div class="shot" id="sh-kitchen"><img src="assets/kitchen.jpg" data-w="3000" data-h="2000"><div class="shade"></div></div>
+  <div class="shot" id="sh-sender"><img src="assets/sender.jpg" data-w="1683" data-h="2103"><div class="shade"></div></div>
+  <div id="vignette"></div><div id="leak"></div><div id="flash"></div>
+  <canvas id="grain" width="640" height="1140"></canvas>
+
+  <div id="np"><span class="disc"><b></b></span><div>Five minutes late, right on time<small>Wishly sample song · For Lena</small></div></div>
+
+  <div id="hook">
+    <span class="tkbox">this song was made for exactly one person</span><br>
+    <div id="soundon"><svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9v6h4l5 4V5L8 9H4z"/><path d="M16.5 8.5a5 5 0 0 1 0 7"/><path d="M19 6a8.5 8.5 0 0 1 0 12"/></svg>sound on</div>
+  </div>
+
+  <div id="receipts"><div id="rlabel">THE DETAILS → THE LYRICS</div></div>
+  <div id="lyric"></div>
+
+  <div class="mid" id="m1" style="top:1130px"><span class="tkbox" style="font-size:74px">every line came from her best friend’s memories</span></div>
+  <div class="mid" id="m2" style="top:1430px"><span class="tkbox" style="font-size:66px">she shared the story.<br>Wishly made the song.</span></div>
+  <div id="form">
+    <div class="head"><svg width="40" height="40" viewBox="0 0 100 100"><g fill="#EC4F63"><rect x="42" y="4" width="16" height="92" rx="8"/><rect x="42" y="4" width="16" height="92" rx="8" transform="rotate(45 50 50)"/><rect x="42" y="4" width="16" height="92" rx="8" transform="rotate(90 50 50)"/><rect x="42" y="4" width="16" height="92" rx="8" transform="rotate(135 50 50)"/></g></svg>Tell us about them</div>
+    <div class="row"><span>NAME</span><b>Lena</b></div>
+    <div class="row"><span>OCCASION</span><b>Turning 30</b></div>
+    <div class="row"><span>MEMORY</span><b>Always 5 minutes late</b></div>
+    <div class="row"><span>MEMORY</span><b>Emergency snacks</b></div>
+    <div class="row"><span>MEMORY</span><b>Kitchen dancing</b></div>
+    <div class="row"><span>SOUND</span><b>Disco-pop · playful</b></div>
+  </div>
+
+  <div id="end">
+    <div class="b" id="eb1" style="width:620px;height:620px;background:var(--coral);right:-220px;top:-160px"></div>
+    <div class="b" id="eb2" style="width:420px;height:420px;background:var(--gold);left:-190px;top:1640px"></div>
+    <div class="b" id="eb3" style="width:240px;height:240px;background:#DCCBEE;right:160px;top:1560px"></div>
+    <div style="position:absolute;left:80px;top:400px;width:900px">
+      <p class="r" data-d="0.1" style="font-family:'Inter Tight';font-weight:700;font-size:56px;letter-spacing:-0.02em;color:rgba(255,255,255,.8);line-height:1.28">Their name.<br>Your memories.<br>A song they’ll keep replaying.</p>
+      <h1 style="margin-top:70px"><span class="r" data-d="0.8" style="display:block">A song made</span><span class="serif r" data-d="1.0">just for them.</span></h1>
+      <div class="r" data-d="1.5" style="margin-top:70px;display:inline-flex;align-items:center;gap:20px;height:130px;padding:0 60px;border-radius:65px;background:linear-gradient(90deg,var(--coral),var(--coral2));font-size:46px;font-weight:800;box-shadow:0 16px 40px rgba(236,79,99,.35)">Make one for your person <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17L17 7M9 7h8v8"/></svg></div>
+      <p class="r" data-d="1.7" style="margin-top:34px;font-size:34px;color:rgba(255,255,255,.78)">Hear samples first · No musical skills needed</p>
+    </div>
+    <div class="logo r" data-d="2.0" style="position:absolute;left:80px;bottom:330px;font-size:84px">
+      <svg id="endast" width="76" height="76" viewBox="0 0 100 100"><g fill="#EC4F63"><rect x="42" y="4" width="16" height="92" rx="8"/><rect x="42" y="4" width="16" height="92" rx="8" transform="rotate(45 50 50)"/><rect x="42" y="4" width="16" height="92" rx="8" transform="rotate(90 50 50)"/><rect x="42" y="4" width="16" height="92" rx="8" transform="rotate(135 50 50)"/></g></svg>
+      <span>wishly<span class="dot">.</span></span>
+    </div>
+  </div>
+</div>
+
+<script>
+const DURATION=31.0;
+const clamp=(v,a=0,b=1)=>Math.min(b,Math.max(a,v));
+const prog=(t,a,b)=>clamp((t-a)/(b-a));
+const eo=x=>1-Math.pow(1-x,3);
+const eio=x=>x<.5?4*x*x*x:1-Math.pow(-2*x+2,3)/2;
+const back=x=>{const c1=1.70158,c3=c1+1;return 1+c3*Math.pow(x-1,3)+c1*Math.pow(x-1,2)};
+const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
+
+// ---------- shots: [id, start, end, from{cx,cy,z}, to{cx,cy,z}] ----------
+const SHOTS=[
+  ['sh-kitchen', 0.00, 1.62, {cx:.69,cy:.24,z:1.55},{cx:.69,cy:.24,z:1.75}],   // hook on Lena
+  ['sh-kitchen',1.62, 4.62, {cx:.685,cy:.40,z:1.15},{cx:.68,cy:.36,z:1.30}],   // Lena dancing
+  ['sh-kitchen',4.62, 7.90, {cx:.20,cy:.56,z:1.75},{cx:.15,cy:.55,z:1.50}],   // snacks + cake
+  ['sh-kitchen',7.90,12.25, {cx:.36,cy:.48,z:1.00},{cx:.62,cy:.46,z:1.06}],   // the dance floor
+  ['sh-sender', 12.25,13.32,{cx:.50,cy:.34,z:1.10},{cx:.50,cy:.32,z:1.20}],   // the friend
+  ['sh-party',  13.32,18.40,{cx:.30,cy:.46,z:1.00},{cx:.47,cy:.44,z:1.05}],   // favourite people
+  ['sh-sender', 18.40,20.20,{cx:.50,cy:.40,z:1.00},{cx:.50,cy:.38,z:1.06}],   // how
+  ['sh-kitchen',20.20,24.75,{cx:.665,cy:.25,z:1.45},{cx:.665,cy:.23,z:1.80}],  // Lena peak
+];
+const imgs={}; $$('.shot').forEach(s=>{const i=s.querySelector('img');imgs[s.id]={el:s,img:i,w:+i.dataset.w,h:+i.dataset.h}});
+function place(id,c,t){
+  const o=imgs[id], base=1920/o.h, s=Math.max(base*c.z,1080/o.w);
+  const W=o.w*s,H=o.h*s;
+  // handheld drift
+  const jx=Math.sin(t*1.7)*6+Math.sin(t*3.1)*3, jy=Math.cos(t*1.3)*6+Math.sin(t*2.3)*3;
+  let L=540-c.cx*W+jx, T=960-c.cy*H+jy;
+  L=Math.min(0,Math.max(1080-W,L)); T=Math.min(0,Math.max(1920-H,T));
+  o.img.style.transform=`translate(${L}px,${T}px) scale(${s})`;
+}
+
+// ---------- lyrics (word timings from the real sample) ----------
+const LINES=[
+  {s:1.60,e:4.55, w:[['Lena’s',1.60,1],['five',2.54,1],['minutes',2.96,1],['late,',3.44,1]]},
+  {s:4.62,e:7.85, w:[['with',4.66],['the',4.72],['snacks',4.94,1],['in',5.40],['her',5.84],['hand,',6.20]]},
+  {s:7.92,e:10.68,w:[['turns',7.96],['the',8.30],['kitchen',8.52,1],['to',8.86],['a',9.30],['dance',9.54,1],['floor,',9.96,1]]},
+  {s:10.68,e:12.25,w:[['like',10.72],['nobody',10.98],['else',11.54],['can',12.00]]},
+  {s:13.32,e:16.20,w:[['Thirty',13.32,1],['looks',14.52],['like',15.06],['laughing',15.46,1]]},
+  {s:16.22,e:18.40,w:[['with',16.26],['your',16.74],['favorite',17.04,1],['people',17.50,1],['near',18.0]]},
+  {s:20.18,e:23.00,w:[['Lena,',20.20,1],['light',20.54],['the',21.20],['room',21.52],['again,',22.02]]},
+  {s:23.04,e:24.75,w:[['this',23.08],['is',23.30],['your',23.72,2],['year',24.10,2]]},
+];
+const lyricEl=$('#lyric'); let curLine=-1;
+function renderLyrics(t){
+  const li=LINES.findIndex(l=>t>=l.s&&t<l.e);
+  if(li!==curLine){
+    curLine=li; lyricEl.innerHTML='';
+    if(li>=0) LINES[li].w.forEach(([w,,hl])=>{const s=document.createElement('span');s.className='w'+(hl?' hl':'')+(hl===2?' serif':'');s.textContent=w;lyricEl.appendChild(s)});
+  }
+  if(li<0) return;
+  const L=LINES[li], out=1-prog(t,L.e-0.12,L.e);
+  [...lyricEl.children].forEach((el,i)=>{
+    const p=prog(t,L.w[i][1]-0.06,L.w[i][1]+0.16);
+    el.style.opacity=p*out;
+    el.style.transform=`translateY(${(1-eo(p))*30}px) scale(${0.7+0.3*back(p)})`;
+  });
+  // peak line bigger
+  lyricEl.style.top = (li>=6?1060:1120)+'px';
+  lyricEl.style.fontSize='';
+}
+
+// ---------- receipts (detail chips) ----------
+const CHIPS=[
+  {txt:'her name',            t:2.00, out:12.2},
+  {txt:'always 5 minutes late',t:3.45, out:12.2},
+  {txt:'the emergency snacks',t:5.05, out:12.2},
+  {txt:'the kitchen dancing', t:8.60, out:12.2},
+  {txt:'turning 30',          t:13.6, out:18.35},
+  {txt:'her favorite people', t:17.2, out:18.35},
+];
+const chk='<svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>';
+CHIPS.forEach(c=>{const d=document.createElement('div');d.className='chip';d.innerHTML=`<i>${chk}</i>${c.txt}`;$('#receipts').appendChild(d);c.el=d});
+function renderChips(t){
+  CHIPS.forEach(c=>{
+    const p=prog(t,c.t,c.t+0.28), o=1-prog(t,c.out-0.2,c.out);
+    const vis=t>=c.t && t<c.out;
+    c.el.style.display=vis?'flex':'none';
+    c.el.style.opacity=p*o;
+    c.el.style.transform=`translateX(${(1-eo(p))*-120}px) scale(${0.85+0.15*back(p)})`;
+  });
+  const lab=(prog(t,1.9,2.2)*(1-prog(t,12.0,12.2))) + (prog(t,13.5,13.8)*(1-prog(t,18.2,18.4)));
+  $('#rlabel').style.opacity=lab;
+}
+
+// ---------- grain ----------
+const g=$('#grain').getContext('2d'); const gid=g.createImageData(640,1140);
+function grain(seed){let x=seed*9301+49297;for(let i=0;i<gid.data.length;i+=4){x=(x*9301+49297)%233280;const v=x/233280*255;gid.data[i]=gid.data[i+1]=gid.data[i+2]=v;gid.data[i+3]=255}g.putImageData(gid,0,0)}
+$('#grain').style.width='1280px';$('#grain').style.height='2280px';
+
+const CUTS=SHOTS.map(s=>s[1]).filter(x=>x>0);
+function render(t){
+  // shots
+  $$('.shot').forEach(s=>s.style.opacity=0);
+  SHOTS.forEach(([id,a,b,f,to])=>{
+    if(t>=a&&t<b){const p=eio(prog(t,a,b));
+      const c={cx:f.cx+(to.cx-f.cx)*p,cy:f.cy+(to.cy-f.cy)*p,z:f.z+(to.z-f.z)*p};
+      // punch-in on cut
+      const punch=1+0.06*(1-eo(prog(t,a,a+0.35)));
+      c.z*=punch; place(id,c,t); imgs[id].el.style.opacity=1;}
+  });
+  // flash on cuts
+  let fl=0; CUTS.forEach(c=>{const d=t-c; if(d>=0&&d<0.25) fl=Math.max(fl,0.55*(1-d/0.25));});
+  $('#flash').style.opacity=fl;
+  // light leak during peak moments
+  const lk=0.5*Math.sin(prog(t,13.3,18.4)*Math.PI)+0.6*Math.sin(prog(t,20.2,24.8)*Math.PI)+0.3*Math.sin(prog(t,7.9,12.2)*Math.PI);
+  $('#leak').style.opacity=clamp(lk); $('#leak').style.transform=`translate(${Math.sin(t*.6)*80}px,${Math.cos(t*.5)*60}px)`;
+  grain(Math.floor(t*24)); $('#grain').style.transform=`translate(${(Math.floor(t*24)*37)%90-90}px,${(Math.floor(t*24)*53)%90-90}px)`;
+
+  // hook
+  const hp=prog(t,0.05,0.3), ho=1-prog(t,1.45,1.62);
+  $('#hook').style.opacity=hp*ho; $('#hook').style.transform=`scale(${0.9+0.1*back(hp)}) rotate(-1.5deg)`;
+  // now playing
+  $('#np').style.opacity=prog(t,1.6,1.9)*(1-prog(t,24.5,24.75));
+  $('#np .disc').style.transform=`rotate(${t*120}deg)`;
+  renderLyrics(t); renderChips(t);
+
+  // mid texts
+  const m1=prog(t,12.3,12.5)*(1-prog(t,13.15,13.32));
+  $('#m1').style.opacity=m1; $('#m1').style.transform=`scale(${0.9+0.1*back(prog(t,12.3,12.55))}) rotate(-1.5deg)`;
+  const m2=prog(t,18.45,18.65)*(1-prog(t,20.0,20.2));
+  $('#m2').style.opacity=m2; $('#m2').style.transform=`scale(${0.9+0.1*back(prog(t,18.45,18.7))}) rotate(-1.5deg)`;
+  const fp=prog(t,18.55,18.85)*(1-prog(t,20.0,20.2));
+  $('#form').style.opacity=fp; $('#form').style.transform=`translateY(${(1-eo(prog(t,18.55,18.9)))*120}px)`;
+  $$('#form .row').forEach((r,i)=>{const p=prog(t,18.7+i*0.16,18.9+i*0.16);r.style.opacity=p;r.style.transform=`translateX(${(1-eo(p))*40}px)`});
+
+  // end card
+  const E=24.75, ep=eo(prog(t,E,E+0.35));
+  $('#end').style.opacity=ep; $('#end').style.clipPath=`circle(${ep*150}% at 50% 60%)`;
+  $$('#end .r').forEach(el=>{const d=+el.dataset.d,p=eo(prog(t,E+d,E+d+0.5));el.style.opacity=p;el.style.transform=`translateY(${(1-p)*50}px)`});
+  $('#endast').style.transform=`rotate(${t*40}deg)`;
+  $('#eb1').style.transform=`translate(${Math.sin(t)*30}px,${Math.cos(t*.8)*30}px) scale(${0.5+0.5*eo(prog(t,E,E+1))})`;
+  $('#eb2').style.transform=`translate(${Math.cos(t*.9)*30}px,${Math.sin(t*.7)*30}px) scale(${0.5+0.5*eo(prog(t,E+.2,E+1.2))})`;
+  $('#eb3').style.transform=`translate(${Math.sin(t*1.2)*20}px,${Math.cos(t)*20}px)`;
+}
+window.render=render; window.DURATION=DURATION;
+render(0);
+</script>
+</body>
+</html>

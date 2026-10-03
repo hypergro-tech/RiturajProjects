@@ -1,0 +1,448 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Wishly – How to create your first song</title>
+<link rel="stylesheet" href="fonts/fonts.css">
+<style>
+  :root{
+    --teal:#173B41; --teal2:#21494F; --cream:#FDF6EE; --ink:#173B41; --muted:#56696C;
+    --coral:#EC4F63; --coral2:#F47B52; --gold:#FFC56B;
+    --peach:#F7CFAE; --lav:#DCCBEE; --mint:#B4E0D3; --yellow:#FFD86E; --sky:#C9DDF1; --pink:#F9D9DD;
+    --line:#E9DFD3;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{width:1080px;height:1920px;overflow:hidden;background:var(--cream)}
+  body{font-family:'Inter',sans-serif;color:var(--ink);-webkit-font-smoothing:antialiased}
+  #stage{position:relative;width:1080px;height:1920px;overflow:hidden;background:var(--cream)}
+  .scene{position:absolute;inset:0;opacity:0;will-change:transform,opacity}
+  .dark{background:var(--teal);color:#fff}
+
+  /* ---------- shared bits ---------- */
+  .logo{display:flex;align-items:center;gap:14px;font-family:'Inter Tight';font-weight:800;letter-spacing:-0.04em}
+  .logo .w{color:var(--ink)}
+  .dark .logo .w{color:#fff}
+  .logo .dot{color:var(--coral)}
+  .eyebrow{font-weight:700;letter-spacing:.22em;text-transform:uppercase;color:var(--coral);font-size:28px}
+  h1{font-family:'Inter Tight';font-weight:800;letter-spacing:-0.045em;line-height:.98}
+  .serif{font-family:'Fraunces';font-style:italic;font-weight:500;letter-spacing:-0.02em;color:var(--gold)}
+  .blob{position:absolute;border-radius:50%;filter:blur(0px)}
+
+  /* ---------- top bar ---------- */
+  #topbar{position:absolute;left:0;right:0;top:0;height:160px;display:flex;align-items:center;justify-content:space-between;padding:0 70px;z-index:20;opacity:0}
+  #topbar .logo{font-size:52px}
+  #progress{display:flex;gap:10px}
+  #progress .seg{width:62px;height:10px;border-radius:6px;background:#EADFD2;overflow:hidden}
+  #progress .seg i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--coral),var(--coral2))}
+
+  /* ---------- step scenes ---------- */
+  .step .bgblob{position:absolute;width:900px;height:900px;border-radius:50%;right:-380px;top:-200px;opacity:.75}
+  .step .head{position:absolute;left:70px;top:200px;display:flex;align-items:center;gap:22px}
+  .badge{width:76px;height:76px;border-radius:50%;background:#fff;color:var(--coral);font-weight:800;font-size:30px;display:flex;align-items:center;justify-content:center;box-shadow:0 6px 18px rgba(23,59,65,.10)}
+  .step h1{position:absolute;left:66px;top:305px;font-size:112px;width:960px}
+  .step .sub{position:absolute;left:70px;top:560px;font-size:40px;color:var(--muted);width:940px;line-height:1.3}
+  .card{position:absolute;left:60px;top:690px;width:960px;background:#fff;border-radius:48px;padding:56px 56px;box-shadow:0 30px 80px rgba(23,59,65,.14),0 4px 14px rgba(23,59,65,.06)}
+  .lbl{font-size:28px;font-weight:600;color:var(--muted);margin-bottom:14px;letter-spacing:.01em}
+  .field{margin-bottom:34px}
+  .input{height:104px;border:3px solid var(--line);border-radius:26px;padding:0 32px;display:flex;align-items:center;font-size:44px;font-weight:600;color:var(--ink);position:relative;transition:none}
+  .input.focus{border-color:var(--coral);box-shadow:0 0 0 8px rgba(236,79,99,.12)}
+  .input .ph{color:#B9B0A6;font-weight:500}
+  .caret{display:inline-block;width:4px;height:52px;background:var(--coral);margin-left:4px;border-radius:2px;opacity:0}
+  .input.area{height:auto;min-height:190px;align-items:flex-start;padding:28px 32px;line-height:1.3}
+  .input .icon{position:absolute;right:26px;top:50%;transform:translateY(-50%);width:62px;height:62px;border-radius:50%;background:var(--pink);display:flex;align-items:center;justify-content:center}
+  .chips{display:flex;flex-wrap:wrap;gap:16px}
+  .chip{padding:0 34px;height:80px;border-radius:40px;border:3px solid var(--line);font-size:34px;font-weight:600;display:flex;align-items:center;gap:12px;background:#fff;color:var(--ink)}
+  .chip.on{background:var(--teal);border-color:var(--teal);color:#fff}
+  .chip .tick{display:none}
+  .chip.on .tick{display:inline-block}
+  .row2{display:flex;gap:24px}
+  .row2 .field{flex:1}
+
+  .grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:18px}
+  .tile{height:172px;border-radius:30px;border:3px solid var(--line);display:flex;flex-direction:column;justify-content:flex-end;padding:22px 24px;font-size:32px;font-weight:700;position:relative;overflow:hidden}
+  .tile small{font-size:23px;font-weight:500;color:var(--muted);margin-top:4px}
+  .tile .sw{position:absolute;right:-20px;top:-20px;width:90px;height:90px;border-radius:50%}
+  .tile.on{border-color:var(--teal);box-shadow:0 0 0 6px rgba(23,59,65,.12)}
+  .tile.on::after{content:"";position:absolute;left:18px;top:16px;width:36px;height:36px;border-radius:50%;background:var(--teal) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='3.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 12.5l4.5 4.5L19 7.5'/%3E%3C/svg%3E") center/24px no-repeat}
+  .preview{margin-top:26px;height:120px;border-radius:30px;background:var(--teal);display:flex;align-items:center;gap:24px;padding:0 30px;color:#fff;overflow:hidden}
+  .preview .pbtn{width:66px;height:66px;border-radius:50%;background:#fff;display:flex;align-items:center;justify-content:center;flex:none}
+  .preview .meta{font-size:28px;font-weight:600;line-height:1.25;flex:none;width:250px}
+  .preview .meta small{display:block;font-weight:500;opacity:.7;font-size:23px}
+  .wave{display:flex;align-items:center;gap:7px;height:80px;flex:1}
+  .wave b{display:block;width:8px;border-radius:4px;background:var(--mint)}
+  .seg3{display:flex;background:#F4EDE4;border-radius:30px;padding:8px;gap:8px}
+  .seg3 span{flex:1;height:76px;border-radius:24px;display:flex;align-items:center;justify-content:center;font-size:32px;font-weight:600;color:var(--muted)}
+  .seg3 span.on{background:#fff;color:var(--ink);box-shadow:0 4px 12px rgba(23,59,65,.12)}
+  .note{display:flex;align-items:center;gap:16px;font-size:30px;font-weight:600;color:var(--ink);background:var(--pink);border-radius:24px;padding:22px 28px;margin-top:30px}
+
+  .opt{display:flex;align-items:center;gap:26px;border:3px solid var(--line);border-radius:30px;padding:26px 28px;margin-bottom:18px;position:relative}
+  .opt .ic{width:84px;height:84px;border-radius:22px;flex:none;display:flex;align-items:center;justify-content:center}
+  .opt .t{font-size:36px;font-weight:700}
+  .opt .d{font-size:26px;color:var(--muted);margin-top:4px}
+  .opt .box{margin-left:auto;width:52px;height:52px;border-radius:16px;border:3px solid var(--line);flex:none}
+  .opt.on{border-color:var(--teal);background:#F7FBFA}
+  .opt.on .box{background:var(--teal) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='3.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 12.5l4.5 4.5L19 7.5'/%3E%3C/svg%3E") center/30px no-repeat;border-color:var(--teal)}
+  .tag{position:absolute;right:100px;top:-18px;background:var(--coral);color:#fff;font-size:20px;font-weight:800;letter-spacing:.14em;padding:8px 16px;border-radius:14px}
+  .sectionlbl{font-size:24px;font-weight:700;letter-spacing:.18em;color:var(--muted);margin:26px 0 16px}
+
+  .rv{display:flex;align-items:flex-start;gap:24px;padding:26px 0;border-bottom:2px solid #F1E9DF}
+  .rv .k{font-size:25px;font-weight:700;letter-spacing:.12em;color:var(--muted);width:170px;flex:none;padding-top:8px}
+  .rv .v{font-size:34px;font-weight:600;line-height:1.3;flex:1}
+  .rv .v small{display:block;font-size:27px;color:var(--muted);font-weight:500}
+  .ck{width:48px;height:48px;border-radius:50%;background:#E6F4EF;flex:none;display:flex;align-items:center;justify-content:center;opacity:0}
+  .paybox{margin-top:30px;background:#F7F1E9;border-radius:28px;padding:28px 32px}
+  .paybox .pl{display:flex;align-items:center;gap:16px;font-size:32px;font-weight:600;padding:8px 0}
+  .btn{height:116px;border-radius:58px;background:linear-gradient(90deg,var(--coral),var(--coral2));color:#fff;font-size:40px;font-weight:800;display:flex;align-items:center;justify-content:center;gap:18px;margin-top:32px;box-shadow:0 14px 30px rgba(236,79,99,.30)}
+
+  .order{display:flex;align-items:center;gap:26px;border:3px solid var(--line);border-radius:30px;padding:24px}
+  .art{width:120px;height:120px;border-radius:24px;flex:none;background:linear-gradient(135deg,#F7B49A,#EC4F63 60%,#8C5BB8);display:flex;align-items:center;justify-content:center}
+  .order .t{font-size:36px;font-weight:800}
+  .order .d{font-size:26px;color:var(--muted);margin-top:4px}
+  .pill{margin-left:auto;font-size:24px;font-weight:800;letter-spacing:.06em;padding:12px 20px;border-radius:20px;background:#FFF1CF;color:#8A5A00;white-space:nowrap}
+  .pill.ready{background:#DDF2EA;color:#1D6B52}
+  .player{margin-top:26px;background:var(--teal);border-radius:36px;padding:34px;color:#fff}
+  .player .top{display:flex;align-items:center;gap:24px}
+  .player .pb{width:96px;height:96px;border-radius:50%;background:#fff;display:flex;align-items:center;justify-content:center;flex:none}
+  .bar{height:10px;border-radius:5px;background:rgba(255,255,255,.2);margin:28px 0 8px;overflow:hidden}
+  .bar i{display:block;height:100%;width:0;background:var(--gold)}
+  .times{display:flex;justify-content:space-between;font-size:22px;opacity:.6}
+  .lyrics{margin-top:22px}
+  .lyrics p{font-size:35px;line-height:1.35;font-weight:600;color:rgba(255,255,255,.35);margin:8px 0}
+  .lyrics p.now{color:#fff}
+  .lyrics p.now em{font-style:normal;color:var(--gold)}
+  .lyrics em{font-style:normal}
+  .acts{display:flex;gap:18px;margin-top:26px}
+  .act{flex:1;height:100px;border-radius:50px;display:flex;align-items:center;justify-content:center;gap:14px;font-size:32px;font-weight:700;border:3px solid var(--line);background:#fff}
+  .act.primary{background:linear-gradient(90deg,var(--coral),var(--coral2));color:#fff;border:none}
+  #toast{position:absolute;left:50%;top:1760px;transform:translateX(-50%);background:var(--teal);color:#fff;font-size:32px;font-weight:700;padding:26px 40px;border-radius:40px;display:flex;align-items:center;gap:16px;opacity:0;z-index:30;white-space:nowrap;box-shadow:0 14px 40px rgba(0,0,0,.25)}
+
+  /* tap indicator */
+  #tap{position:absolute;width:84px;height:84px;margin:-42px 0 0 -42px;border-radius:50%;background:rgba(23,59,65,.22);border:4px solid rgba(255,255,255,.9);z-index:40;opacity:0;box-shadow:0 6px 20px rgba(23,59,65,.25)}
+  #ring{position:absolute;width:84px;height:84px;margin:-42px 0 0 -42px;border-radius:50%;border:5px solid var(--coral);z-index:39;opacity:0}
+
+  /* intro / outro */
+  #s0 h1, #s7 h1{font-size:150px;line-height:.95}
+  .ln{display:block}
+</style>
+</head>
+<body>
+<div id="stage">
+
+  <!-- ============ INTRO ============ -->
+  <div class="scene dark" id="s0" data-start="0" data-end="3.4">
+    <div class="blob" id="b1" style="width:620px;height:620px;background:var(--coral);left:-300px;top:1480px;opacity:.9"></div>
+    <div class="blob" id="b2" style="width:420px;height:420px;background:var(--gold);right:-120px;top:120px;opacity:.95"></div>
+    <div class="blob" id="b3" style="width:300px;height:300px;background:var(--lav);right:120px;top:1500px;opacity:.9"></div>
+    <div style="position:absolute;left:80px;top:250px">
+      <div class="logo r" data-d="0.05" style="font-size:72px">
+        <svg class="ast" width="66" height="66" viewBox="0 0 100 100"><g fill="#EC4F63"><rect x="42" y="4" width="16" height="92" rx="8"/><rect x="42" y="4" width="16" height="92" rx="8" transform="rotate(45 50 50)"/><rect x="42" y="4" width="16" height="92" rx="8" transform="rotate(90 50 50)"/><rect x="42" y="4" width="16" height="92" rx="8" transform="rotate(135 50 50)"/></g></svg>
+        <span class="w">wishly<span class="dot">.</span></span>
+      </div>
+    </div>
+    <div style="position:absolute;left:80px;top:640px;width:940px">
+      <div class="eyebrow r" data-d="0.25" style="color:var(--gold);margin-bottom:40px">Quick guide · 6 steps</div>
+      <h1><span class="ln r" data-d="0.35">How to</span><span class="ln r" data-d="0.48">create your</span><span class="ln r" data-d="0.61">first</span><span class="ln r serif" data-d="0.74" style="font-size:170px;line-height:1.05">Wishly song.</span></h1>
+      <p class="r" data-d="1.1" style="font-size:44px;margin-top:56px;line-height:1.35;color:rgba(255,255,255,.85)">Start with the person and their story.<br>No musical skills needed.</p>
+    </div>
+  </div>
+
+  <!-- ============ STEP 1 ============ -->
+  <div class="scene step" id="s1" data-start="3.4" data-end="8.6">
+    <div class="bgblob" style="background:var(--peach)"></div>
+    <div class="head r" data-d="0.1"><div class="badge">01</div><div class="eyebrow">Step 1 of 6</div></div>
+    <h1 class="r" data-d="0.18">Tell us who<br>it's for.</h1>
+    <p class="sub r" data-d="0.3">Their name, how to say it, and the moment.</p>
+    <div class="card r" data-d="0.4">
+      <div class="row2">
+        <div class="field"><div class="lbl">Their name</div><div class="input" id="f-name"><span class="txt"></span><span class="caret"></span><span class="ph">Name</span></div></div>
+        <div class="field"><div class="lbl">Nickname</div><div class="input" id="f-nick"><span class="txt"></span><span class="caret"></span><span class="ph">Optional</span></div></div>
+      </div>
+      <div class="field"><div class="lbl">How do you say it?</div><div class="input" id="f-pron"><span class="txt"></span><span class="caret"></span><span class="ph">e.g. LEE-na</span>
+        <span class="icon" id="spk"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#EC4F63" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9v6h4l5 4V5L8 9H4z"/><path d="M16.5 8.5a5 5 0 0 1 0 7"/><path d="M19 6a8.5 8.5 0 0 1 0 12"/></svg></span></div></div>
+      <div class="field"><div class="lbl">You are their…</div>
+        <div class="chips"><span class="chip">Partner</span><span class="chip" id="c-bf"><span class="tick">✓</span>Best friend</span><span class="chip">Parent</span><span class="chip">Sibling</span><span class="chip">Colleague</span></div></div>
+      <div class="field" style="margin-bottom:0"><div class="lbl">Occasion</div>
+        <div class="chips"><span class="chip" id="c-bd"><span class="tick">✓</span>Birthday</span><span class="chip">Anniversary</span><span class="chip">Wedding</span><span class="chip">Graduation</span><span class="chip">Thank you</span></div></div>
+    </div>
+  </div>
+
+  <!-- ============ STEP 2 ============ -->
+  <div class="scene step" id="s2" data-start="8.6" data-end="13.8">
+    <div class="bgblob" style="background:var(--lav)"></div>
+    <div class="head r" data-d="0.1"><div class="badge">02</div><div class="eyebrow">Step 2 of 6</div></div>
+    <h1 class="r" data-d="0.18">Share<br>the story.</h1>
+    <p class="sub r" data-d="0.3">The little things only you know.</p>
+    <div class="card r" data-d="0.4">
+      <div class="field"><div class="lbl">A memory you share</div><div class="input area" id="f-mem"><span><span class="txt"></span><span class="caret"></span><span class="ph">The kitchen dancing, the road trip…</span></span></div></div>
+      <div class="field"><div class="lbl">Something they always say</div><div class="input" id="f-say"><span class="txt"></span><span class="caret"></span><span class="ph">An inside joke or catchphrase</span></div></div>
+      <div class="field" style="margin-bottom:0"><div class="lbl">What do you want them to feel?</div>
+        <div class="chips"><span class="chip" id="c-cel"><span class="tick">✓</span>Celebrated</span><span class="chip">Proud</span><span class="chip" id="c-known"><span class="tick">✓</span>Truly known</span><span class="chip">Comforted</span><span class="chip">Laughing</span></div></div>
+    </div>
+  </div>
+
+  <!-- ============ STEP 3 ============ -->
+  <div class="scene step" id="s3" data-start="13.8" data-end="18.8">
+    <div class="bgblob" style="background:var(--mint)"></div>
+    <div class="head r" data-d="0.1"><div class="badge">03</div><div class="eyebrow">Step 3 of 6</div></div>
+    <h1 class="r" data-d="0.18">Choose<br>the sound.</h1>
+    <p class="sub r" data-d="0.3">Style, mood and language. Tap to preview.</p>
+    <div class="card r" data-d="0.4">
+      <div class="lbl">Musical style</div>
+      <div class="grid">
+        <div class="tile" id="t-disco"><span class="sw" style="background:var(--coral)"></span>Disco-pop<small>Upbeat, bright</small></div>
+        <div class="tile"><span class="sw" style="background:var(--gold)"></span>Acoustic<small>Warm, intimate</small></div>
+        <div class="tile"><span class="sw" style="background:var(--lav)"></span>R&amp;B soul<small>Smooth, tender</small></div>
+        <div class="tile"><span class="sw" style="background:var(--peach)"></span>Bollywood<small>Filmy, festive</small></div>
+        <div class="tile"><span class="sw" style="background:var(--mint)"></span>Latin pop<small>Rhythmic, joyful</small></div>
+        <div class="tile"><span class="sw" style="background:var(--sky)"></span>Piano ballad<small>Quiet, moving</small></div>
+      </div>
+      <div class="preview" id="prev"><span class="pbtn"><svg width="26" height="26" viewBox="0 0 24 24"><rect x="5" y="4" width="5" height="16" rx="1.5" fill="#173B41"/><rect x="14" y="4" width="5" height="16" rx="1.5" fill="#173B41"/></svg></span><div class="meta">Sample preview<small>Disco-pop · 0:12</small></div><div class="wave" id="wave"></div></div>
+      <div class="lbl" style="margin-top:34px">Mood</div>
+      <div class="chips"><span class="chip">Tender</span><span class="chip" id="c-play"><span class="tick">✓</span>Playful</span><span class="chip">Nostalgic</span><span class="chip">Epic</span></div>
+      <div class="lbl" style="margin-top:34px">Language</div>
+      <div class="seg3"><span id="l-en">English</span><span>Hindi</span><span>Español</span></div>
+    </div>
+  </div>
+
+  <!-- ============ STEP 4 ============ -->
+  <div class="scene step" id="s4" data-start="18.8" data-end="23.6">
+    <div class="bgblob" style="background:var(--yellow)"></div>
+    <div class="head r" data-d="0.1"><div class="badge">04</div><div class="eyebrow">Step 4 of 6</div></div>
+    <h1 class="r" data-d="0.18">Pick how<br>to give it.</h1>
+    <p class="sub r" data-d="0.3">The song is the gift. Extras are optional.</p>
+    <div class="card r" data-d="0.4">
+      <div class="opt on" style="padding:32px 28px"><span class="tag">THE GIFT</span><span class="ic" style="background:var(--pink)"><svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="#EC4F63" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l11-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="17" cy="16" r="3"/></svg></span><div><div class="t">Their personal song</div><div class="d">Full song · lyrics · private gift link</div></div><span class="box"></span></div>
+      <div class="sectionlbl">OPTIONAL EXTRAS</div>
+      <div class="opt" id="o-lyric"><span class="ic" style="background:#FFF1CF"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#C98A10" stroke-width="2.4" stroke-linecap="round"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 8h8M8 12h8M8 16h5"/></svg></span><div><div class="t">Lyric keepsake</div><div class="d">Artwork of their lyrics</div></div><span class="box"></span></div>
+      <div class="opt"><span class="ic" style="background:#E7DDF4"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#7B58A8" stroke-width="2.4" stroke-linecap="round"><rect x="6" y="2" width="12" height="20" rx="3"/><path d="M11 18h2"/></svg></span><div><div class="t">Social reveal</div><div class="d">Vertical video to post</div></div><span class="box"></span></div>
+      <div class="opt"><span class="ic" style="background:#DDF2EA"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#1D6B52" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="9" cy="10" r="2"/><path d="M21 16l-5-5-8 8"/></svg></span><div><div class="t">Photo film</div><div class="d">Your photos set to the song</div></div><span class="box"></span></div>
+      <div class="opt" style="margin-bottom:0"><span class="ic" style="background:var(--sky)"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#2E5F8C" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l2.6 5.6 6 .7-4.5 4.1 1.2 6-5.3-3-5.3 3 1.2-6L3.4 9.3l6-.7z"/></svg></span><div><div class="t">Complete experience</div><div class="d">Everything, together</div></div><span class="box"></span></div>
+      <div class="note r" data-d="2.9"><svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#EC4F63" stroke-width="2.4" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16.5v.5"/></svg>Photos only needed for photo films.</div>
+    </div>
+  </div>
+
+  <!-- ============ STEP 5 ============ -->
+  <div class="scene step" id="s5" data-start="23.6" data-end="28.4">
+    <div class="bgblob" style="background:var(--sky)"></div>
+    <div class="head r" data-d="0.1"><div class="badge">05</div><div class="eyebrow">Step 5 of 6</div></div>
+    <h1 class="r" data-d="0.18">Review<br>&amp; order.</h1>
+    <p class="sub r" data-d="0.3">Check every name and detail before you pay.</p>
+    <div class="card r" data-d="0.4" style="padding-top:30px">
+      <div class="rv"><div class="k">FOR</div><div class="v">Lena · “Lenny”<small>Said: LEH-nah</small></div><span class="ck"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#1D6B52" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></span></div>
+      <div class="rv"><div class="k">MOMENT</div><div class="v">Birthday<small>From her best friend</small></div><span class="ck"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#1D6B52" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></span></div>
+      <div class="rv"><div class="k">STORY</div><div class="v">Kitchen dancing to ABBA at 2am<small>“One more song!”</small></div><span class="ck"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#1D6B52" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></span></div>
+      <div class="rv" style="border:none"><div class="k">SOUND</div><div class="v">Disco-pop · Playful<small>English · + Lyric keepsake</small></div><span class="ck"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#1D6B52" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></span></div>
+      <div class="paybox r" data-d="2.6">
+        <div style="font-size:26px;font-weight:700;letter-spacing:.14em;color:var(--muted);margin-bottom:8px">SHOWN BEFORE YOU PAY</div>
+        <div class="pl"><svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#173B41" stroke-width="2.4" stroke-linecap="round"><path d="M4 7h16v10H4z"/><path d="M4 11h16"/></svg>Final price, incl. applicable taxes</div>
+        <div class="pl"><svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#173B41" stroke-width="2.4" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>Delivery estimate</div>
+      </div>
+      <div class="btn r" id="b-order" data-d="3.0">Place order <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17L17 7M9 7h8v8"/></svg></div>
+    </div>
+  </div>
+
+  <!-- ============ STEP 6 ============ -->
+  <div class="scene step" id="s6" data-start="28.4" data-end="33.8">
+    <div class="bgblob" style="background:var(--pink)"></div>
+    <div class="head r" data-d="0.1"><div class="badge">06</div><div class="eyebrow">Step 6 of 6</div></div>
+    <h1 class="r" data-d="0.18">Listen<br>&amp; give.</h1>
+    <p class="sub r" data-d="0.3">Follow it in My Songs. Then share their song.</p>
+    <div class="card r" data-d="0.4" style="padding:40px">
+      <div class="lbl" style="letter-spacing:.16em;font-weight:700">MY SONGS</div>
+      <div class="order" id="ord"><span class="art"><svg width="54" height="54" viewBox="0 0 100 100"><g fill="#fff"><rect x="42" y="4" width="16" height="92" rx="8"/><rect x="42" y="4" width="16" height="92" rx="8" transform="rotate(45 50 50)"/><rect x="42" y="4" width="16" height="92" rx="8" transform="rotate(90 50 50)"/><rect x="42" y="4" width="16" height="92" rx="8" transform="rotate(135 50 50)"/></g></svg></span><div><div class="t">For Lena · Birthday</div><div class="d">Disco-pop · playful chorus</div></div><span class="pill" id="pill">IN PRODUCTION</span></div>
+      <div class="player r" data-d="1.35" id="player">
+        <div class="top"><span class="pb"><svg width="34" height="34" viewBox="0 0 24 24"><rect x="5" y="4" width="5" height="16" rx="1.5" fill="#173B41"/><rect x="14" y="4" width="5" height="16" rx="1.5" fill="#173B41"/></svg></span><div><div style="font-size:36px;font-weight:800">Lenny’s Kitchen Disco</div><div style="font-size:26px;opacity:.7;margin-top:4px">A song made just for Lena</div></div></div>
+        <div class="bar"><i id="pbar"></i></div>
+        <div class="times"><span id="tcur">0:00</span><span>2:48</span></div>
+        <div class="lyrics">
+          <p id="ly1"><em>Lenny</em>, it’s 2am and the kitchen’s our stage,</p>
+          <p id="ly2"><em>ABBA</em> on loud, we’re not acting our age,</p>
+          <p id="ly3">you grab my hand when I head for the door —</p>
+          <p id="ly4"><em>“One more song!”</em> …and we dance one more.</p>
+        </div>
+      </div>
+      <div class="acts r" data-d="1.6">
+        <div class="act"><svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#173B41" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg>Download</div>
+        <div class="act primary" id="a-share"><svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M10 14a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1 1"/><path d="M14 10a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1-1"/></svg>Share gift link</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ OUTRO ============ -->
+  <div class="scene dark" id="s7" data-start="33.8" data-end="99">
+    <div class="blob" id="b4" style="width:560px;height:560px;background:var(--coral);right:-180px;top:-120px;opacity:.95"></div>
+    <div class="blob" id="b5" style="width:380px;height:380px;background:var(--gold);right:-160px;top:1500px;opacity:.95"></div>
+    <div style="position:absolute;left:80px;top:430px;width:940px">
+      <p class="r" data-d="0.1" style="font-family:'Inter Tight';font-weight:700;font-size:58px;letter-spacing:-0.02em;color:rgba(255,255,255,.75);line-height:1.25">Their name.<br>Your memories.<br>A song they’ll keep replaying.</p>
+      <h1 style="margin-top:80px"><span class="ln r" data-d="0.9">A song made</span><span class="ln r serif" data-d="1.05" style="font-size:176px;line-height:1.05">just for them.</span></h1>
+      <div class="r" data-d="1.5" style="margin-top:80px;display:inline-flex;align-items:center;gap:20px;height:130px;padding:0 60px;border-radius:65px;background:linear-gradient(90deg,var(--coral),var(--coral2));font-size:46px;font-weight:800;box-shadow:0 16px 40px rgba(236,79,99,.35)">Create their song <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17L17 7M9 7h8v8"/></svg></div>
+      <p class="r" data-d="1.7" style="margin-top:36px;font-size:36px;color:rgba(255,255,255,.75)">Hear samples first · No musical skills needed</p>
+    </div>
+    <div class="logo r" data-d="1.9" style="position:absolute;left:80px;bottom:150px;font-size:76px">
+      <svg width="70" height="70" viewBox="0 0 100 100"><g fill="#EC4F63"><rect x="42" y="4" width="16" height="92" rx="8"/><rect x="42" y="4" width="16" height="92" rx="8" transform="rotate(45 50 50)"/><rect x="42" y="4" width="16" height="92" rx="8" transform="rotate(90 50 50)"/><rect x="42" y="4" width="16" height="92" rx="8" transform="rotate(135 50 50)"/></g></svg>
+      <span class="w">wishly<span class="dot">.</span></span>
+    </div>
+  </div>
+
+  <!-- global overlays -->
+  <div id="topbar">
+    <div class="logo"><svg width="46" height="46" viewBox="0 0 100 100"><g fill="#EC4F63"><rect x="42" y="4" width="16" height="92" rx="8"/><rect x="42" y="4" width="16" height="92" rx="8" transform="rotate(45 50 50)"/><rect x="42" y="4" width="16" height="92" rx="8" transform="rotate(90 50 50)"/><rect x="42" y="4" width="16" height="92" rx="8" transform="rotate(135 50 50)"/></g></svg><span class="w">wishly<span class="dot">.</span></span></div>
+    <div id="progress"></div>
+  </div>
+  <div id="toast"><svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#B4E0D3" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>Private gift link copied</div>
+  <div id="ring"></div><div id="tap"></div>
+</div>
+
+<script>
+const DURATION = 37.8;
+const clamp=(v,a=0,b=1)=>Math.min(b,Math.max(a,v));
+const easeOut=x=>1-Math.pow(1-x,3);
+const easeInOut=x=>x<.5?4*x*x*x:1-Math.pow(-2*x+2,3)/2;
+const prog=(t,a,b)=>clamp((t-a)/(b-a));
+const $=s=>document.querySelector(s);
+const $$=s=>[...document.querySelectorAll(s)];
+
+const scenes=$$('.scene').map(el=>({el,start:+el.dataset.start,end:+el.dataset.end}));
+const steps=scenes.slice(1,7);
+steps.forEach(()=>{const s=document.createElement('div');s.className='seg';s.innerHTML='<i></i>';$('#progress').appendChild(s)});
+const segs=$$('#progress .seg i');
+
+// waveform bars
+for(let i=0;i<26;i++){const b=document.createElement('b');$('#wave').appendChild(b)}
+const bars=$$('#wave b');
+
+// precompute reveal elements with their scene start
+const reveals=$$('.r').map(el=>({el,d:+el.dataset.d,s:+el.closest('.scene').dataset.start}));
+
+// typing events (absolute times)
+const S=id=>+$('#'+id).dataset.start;
+const types=[
+  {sel:'#f-name', text:'Lena', t:S('s1')+0.95, cps:9},
+  {sel:'#f-nick', text:'Lenny', t:S('s1')+1.55, cps:10},
+  {sel:'#f-pron', text:'LEH-nah', t:S('s1')+2.15, cps:12},
+  {sel:'#f-mem',  text:'Dancing to ABBA in the kitchen at 2am, every single birthday.', t:S('s2')+0.85, cps:30},
+  {sel:'#f-say',  text:'“One more song!”', t:S('s2')+3.0, cps:20},
+];
+// selections + taps (absolute times)
+const picks=[
+  {sel:'#c-bf', t:S('s1')+3.35},
+  {sel:'#c-bd', t:S('s1')+4.0},
+  {sel:'#c-cel', t:S('s2')+4.0},
+  {sel:'#c-known', t:S('s2')+4.5},
+  {sel:'#t-disco', t:S('s3')+1.0},
+  {sel:'#c-play', t:S('s3')+3.0},
+  {sel:'#l-en', t:S('s3')+3.7},
+  {sel:'#o-lyric', t:S('s4')+2.0},
+  {sel:'#b-order', t:S('s5')+4.0, noClass:true},
+  {sel:'#ord', t:S('s6')+1.1, noClass:true},
+  {sel:'#a-share', t:S('s6')+3.9, noClass:true},
+];
+const tapAt=[{sel:'#spk', t:S('s1')+3.0}];
+
+function render(t){
+  // scenes in/out
+  scenes.forEach((s,i)=>{
+    const inP=easeOut(prog(t,s.start,s.start+(s.el.classList.contains('dark')?0.22:0.45)));
+    const outP=easeInOut(prog(t,s.end,s.end+0.4));
+    const vis = t>=s.start-0.01 && t<s.end+0.45;
+    s.el.style.display=vis?'block':'none';
+    s.el.style.opacity= i===0? (1-outP) : inP*(1-outP);
+    s.el.style.transform=`translateY(${-120*outP}px)`;
+  });
+  // reveals
+  reveals.forEach(r=>{
+    const p=easeOut(prog(t,r.s+r.d,r.s+r.d+0.55));
+    r.el.style.opacity=p;
+    r.el.style.transform=`translateY(${(1-p)*60}px)`;
+  });
+  // topbar + progress
+  const tb=prog(t,S('s1'),S('s1')+0.4)*(1-prog(t,S('s7'),S('s7')+0.3));
+  $('#topbar').style.opacity=tb;
+  steps.forEach((s,i)=>{segs[i].style.width=(prog(t,s.start,s.end)*100)+'%'});
+
+  // intro asterisk + blobs drift
+  $$('.ast').forEach(a=>a.style.transform=`rotate(${easeOut(prog(t,0,1.4))*180 + t*12}deg)`);
+  $('#b1').style.transform=`translate(${Math.sin(t*.9)*30}px,${Math.cos(t*.7)*30}px)`;
+  $('#b2').style.transform=`translate(${Math.cos(t*.8)*30}px,${Math.sin(t*.6)*30}px)`;
+  $('#b3').style.transform=`translate(${Math.sin(t*1.1)*25}px,${Math.cos(t)*25}px)`;
+  $('#b4').style.transform=`translate(${Math.sin(t*.9)*30}px,${Math.cos(t*.7)*30}px) scale(${0.6+0.4*easeOut(prog(t,S('s7'),S('s7')+1))})`;
+  $('#b5').style.transform=`translate(${Math.cos(t*.8)*30}px,${Math.sin(t*.6)*30}px) scale(${0.6+0.4*easeOut(prog(t,S('s7')+.2,S('s7')+1.2))})`;
+
+  // typing
+  types.forEach(ty=>{
+    const el=$(ty.sel), n=Math.floor(clamp((t-ty.t)*ty.cps,0,ty.text.length));
+    el.querySelector('.txt').textContent=ty.text.slice(0,n);
+    el.querySelector('.ph').style.display = n>0?'none':'';
+    const focus = t>=ty.t-0.25 && t< ty.t + ty.text.length/ty.cps + 0.35;
+    el.classList.toggle('focus',focus);
+    el.querySelector('.caret').style.opacity = focus ? (Math.floor(t*3)%2===0||n<ty.text.length?1:0) : 0;
+  });
+
+  // picks
+  picks.forEach(p=>{ if(!p.noClass) $(p.sel).classList.toggle('on', t>=p.t); });
+
+  // press scale on tapped el
+  [...picks,...tapAt].forEach(p=>{
+    const d=t-p.t, el=$(p.sel);
+    const sc = (d>-0.08&&d<0.22)? 1-0.05*Math.sin(clamp((d+0.08)/0.3)*Math.PI):1;
+    el.style.transform = sc!==1?`scale(${sc})`:'';
+  });
+
+  // tap indicator: find active tap
+  const all=[...picks,...tapAt];
+  let act=null; for(const p of all){ if(t>=p.t-0.35 && t<=p.t+0.5){act=p;break;} }
+  const tap=$('#tap'), ring=$('#ring');
+  if(act){
+    const r=$(act.sel).getBoundingClientRect();
+    const x=r.left+r.width*0.62, y=r.top+r.height*0.58;
+    const d=t-act.t;
+    tap.style.left=ring.style.left=x+'px'; tap.style.top=ring.style.top=y+'px';
+    const a = d<0 ? easeOut(prog(d,-0.35,-0.1)) : 1-prog(d,0.2,0.5);
+    tap.style.opacity=a;
+    tap.style.transform=`scale(${d<0? 1.25-0.25*prog(d,-0.35,-0.1) : (d<0.12?0.82:0.82+0.18*prog(d,0.12,0.3))})`;
+    const rp=prog(d,0,0.45);
+    ring.style.opacity=d>=0?(1-rp)*0.9:0;
+    ring.style.transform=`scale(${1+rp*1.6})`;
+  } else { tap.style.opacity=0; ring.style.opacity=0; }
+
+  // pronunciation speaker pulse
+  const sp=prog(t,S('s1')+3.0,S('s1')+3.6);
+  $('#spk').style.boxShadow = sp>0&&sp<1 ? `0 0 0 ${sp*22}px rgba(236,79,99,${0.35*(1-sp)})` : 'none';
+
+  // waveform
+  const playing = t>=S('s3')+1.0;
+  bars.forEach((b,i)=>{
+    const base=0.25+0.2*Math.sin(i*0.9);
+    const h = playing ? clamp(base+0.55*Math.abs(Math.sin(t*6.3+i*0.75)*Math.cos(t*2.1+i*0.33)),0.12,1) : 0.15;
+    b.style.height=(h*80)+'px';
+    b.style.opacity = playing?1:.4;
+  });
+  $('#prev').style.opacity = 0.55+0.45*prog(t,S('s3')+0.9,S('s3')+1.2);
+
+  // review checks
+  $$('#s5 .ck').forEach((c,i)=>{
+    const p=easeOut(prog(t,S('s5')+0.9+i*0.35,S('s5')+1.2+i*0.35));
+    c.style.opacity=p; c.style.transform=`scale(${0.5+0.5*p})`;
+  });
+
+  // My Songs status
+  const ready = t>=S('s6')+0.8;
+  const pill=$('#pill'); pill.textContent = ready?'READY ✓':'IN PRODUCTION'; pill.classList.toggle('ready',ready);
+  // player
+  const pt=Math.max(0,t-(S('s6')+1.4));
+  $('#pbar').style.width = Math.min(100, 3+pt*3.2)+'%';
+  const secs=Math.floor(pt); $('#tcur').textContent='0:'+String(secs).padStart(2,'0');
+  const lines=['#ly1','#ly2','#ly3','#ly4'];
+  const lt=[1.6,2.4,3.1,3.8].map(x=>S('s6')+x);
+  lines.forEach((l,i)=>{ $(l).classList.toggle('now', t>=lt[i] && (i===3 || t<lt[i+1])); });
+
+  // toast
+  const tt=S('s6')+4.1;
+  const tp=easeOut(prog(t,tt,tt+0.3))*(1-prog(t,S("s6")+5.05,S("s6")+5.35));
+  $('#toast').style.opacity=tp; $('#toast').style.transform=`translate(-50%,${(1-tp)*40}px)`;
+}
+window.render=render; window.DURATION=DURATION;
+render(0);
+</script>
+</body>
+</html>

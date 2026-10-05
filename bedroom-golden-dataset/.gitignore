@@ -5,3 +5,4 @@ images/**/*.webp
 .browser-profile/
 review.html
 manifest.csv
+__pycache__/

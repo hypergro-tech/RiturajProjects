@@ -1,0 +1,93 @@
+:root {
+  --navy: #0A1F44;
+  --gold: #B89241;
+  --gold-2: #C9A95C;
+  --slate: #4A5A75;
+  --mute: #6B7A92;
+  --line: #D9DEE6;
+  --card-line: #E2E6EC;
+  --mute-on-navy: #9FB0C8;
+  --sans: "Inter Tight", "Inter", "DejaVu Sans", sans-serif;
+  --serif: "Source Serif 4", "Liberation Serif", "DejaVu Serif", serif;
+  --mono: "JetBrains Mono", "DejaVu Sans Mono", monospace;
+  --navy-grad: radial-gradient(1300px 900px at 50% 42%, #133264 0%, #0B2149 55%, #081936 100%);
+  --paper-grad: radial-gradient(1500px 1000px at 50% 30%, #FBFCFD 0%, #F5F6F7 55%, #EDF0F3 100%);
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; background: #05101f; overflow: hidden; }
+#stage {
+  position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; overflow: hidden;
+  transform-origin: 0 0; background: var(--navy); font-family: var(--sans); color: var(--navy);
+  -webkit-font-smoothing: antialiased; font-kerning: normal;
+}
+.abs { position: absolute; }
+.fill { left: 0; top: 0; width: 1920px; height: 1080px; }
+.scene { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; visibility: hidden; }
+.bg-navy { background: var(--navy-grad); }
+.bg-paper { background: var(--paper-grad); }
+.grain { background-image: var(--grain); opacity: .5; }
+.panel { top: 0; width: 481px; height: 1080px; background-size: 1920px 1080px; }
+.panel.navy { background-image: var(--navy-grad); }
+.panel.paper { background-image: var(--paper-grad); }
+.guide { top: 0; width: 1px; height: 1080px;
+  background: linear-gradient(to bottom, rgba(255,255,255,0), rgba(255,255,255,.08) 30%, rgba(255,255,255,.08) 70%, rgba(255,255,255,0)); }
+
+/* masked words */
+.w { display: inline-block; overflow: hidden; vertical-align: top; padding: .1em .03em .16em; margin: -.1em -.03em -.16em; }
+.wi { display: inline-block; }
+.gold { color: var(--gold); }
+.gold2 { color: var(--gold-2); }
+.white { color: #fff; }
+
+.mono { font-family: var(--mono); text-transform: uppercase; }
+.eyebrow { font: 500 18px var(--mono); letter-spacing: .18em; text-transform: uppercase; color: var(--mute); white-space: nowrap; }
+.eb-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--gold); margin-right: 14px; transform: translateY(-3px); }
+
+.hook-line { font-weight: 600; font-size: 92px; line-height: 1.12; letter-spacing: -.03em; white-space: nowrap; }
+.rot { display: inline-block; position: relative; overflow: hidden; vertical-align: top; width: 780px; height: 1.12em;
+  padding: .1em 0 .16em; margin: -.1em 0 -.16em; }
+.rot-w { position: absolute; left: 0; top: .1em; color: var(--gold-2); white-space: nowrap; }
+
+.wordmark { font-weight: 800; font-size: 300px; line-height: 1; letter-spacing: -.05em; color: #fff; white-space: nowrap; }
+.mark-dot { display: inline-block; width: 40px; height: 40px; background: var(--gold-2); margin-left: 16px; }
+.name-tag { font-weight: 400; font-size: 40px; color: #B7C3D6; letter-spacing: -.01em; }
+
+.title { font-weight: 700; font-size: 76px; line-height: 1.06; letter-spacing: -.032em; color: var(--navy); white-space: nowrap; }
+.headline { font-weight: 700; font-size: 76px; line-height: 1.06; letter-spacing: -.032em; color: var(--navy); }
+.closing { font-weight: 600; font-size: 38px; line-height: 1.2; letter-spacing: -.018em; color: var(--navy); white-space: nowrap; }
+.moat-label { font: 500 18px var(--mono); letter-spacing: .18em; text-transform: uppercase; color: var(--gold); }
+
+/* vertical pillars */
+.pillar { top: 290px; width: 375px; height: 570px; background: #fff; border: 1px solid var(--card-line); border-radius: 6px;
+  box-shadow: 0 30px 50px -34px rgba(10,31,68,.35); }
+.pillar .bar { left: -1px; top: -1px; width: calc(100% + 2px); height: 4px; background: var(--gold); border-radius: 6px 6px 0 0; transform-origin: 0 0; }
+.pillar .num { left: 36px; top: 36px; font: 500 20px var(--mono); color: var(--gold); letter-spacing: .08em; }
+.pillar .tag { right: 36px; top: 39px; font: 500 15px var(--mono); color: var(--mute); letter-spacing: .22em; text-transform: uppercase; }
+.pillar .ptitle { left: 36px; top: 82px; font-weight: 700; font-size: 60px; letter-spacing: -.03em; color: var(--navy); line-height: 1.1; }
+.pillar .desc { left: 36px; top: 182px; width: 303px; font-weight: 400; font-size: 26px; line-height: 1.38; color: var(--slate); }
+.pillar .div { left: 36px; top: 392px; width: 303px; height: 1px; background: var(--card-line); transform-origin: 0 0; }
+.pillar .stat { left: 36px; top: 404px; font-weight: 700; font-size: 66px; letter-spacing: -.03em; color: var(--navy); line-height: 1.1; white-space: nowrap; }
+.pillar .cap { left: 36px; top: 490px; width: 303px; font: 500 15px var(--mono); color: var(--mute); letter-spacing: .14em; line-height: 1.55; text-transform: uppercase; }
+.loopbar { left: 120px; top: 924px; width: 1680px; height: 80px; background: var(--navy); border-radius: 6px;
+  font-weight: 600; font-size: 30px; letter-spacing: -.01em; line-height: 80px; text-align: center; color: #fff; }
+
+/* svg text */
+svg.layer { position: absolute; left: 0; top: 0; width: 1920px; height: 1080px; overflow: visible; }
+.cap { font: 500 15px var(--mono); letter-spacing: 3px; fill: var(--mute); }
+.capg { font: 500 15px var(--mono); letter-spacing: 3px; fill: var(--gold); }
+.lbl { font: 400 28px var(--serif); fill: var(--navy); }
+.lbl24 { font: 400 24px var(--serif); fill: var(--navy); }
+.lblb { font: 600 26px var(--serif); fill: var(--navy); }
+.core-caps { font: 700 16px var(--sans); letter-spacing: 6px; fill: var(--gold); }
+.core-title { font: 600 44px var(--serif); fill: var(--navy); }
+.core-title-sm { font: 600 30px var(--serif); fill: var(--navy); }
+.learn { font: 400 29px var(--serif); fill: var(--navy); }
+.card-title { font: 600 28px var(--serif); fill: var(--navy); }
+.card-item { font: 400 20px var(--serif); fill: var(--slate); }
+
+/* outro */
+.stat-big { font-weight: 700; font-size: 168px; letter-spacing: -.045em; color: var(--gold-2); line-height: 1; white-space: nowrap; }
+.stat-cap { font: 500 20px var(--mono); letter-spacing: .26em; color: var(--mute-on-navy); text-transform: uppercase; }
+.end-tag { font-weight: 600; font-size: 56px; letter-spacing: -.02em; color: #fff; white-space: nowrap; }
+.end-desc { font-weight: 400; font-size: 30px; color: var(--mute-on-navy); }
+.end-foot { font: 500 18px var(--mono); letter-spacing: .32em; color: var(--gold-2); text-transform: uppercase; }

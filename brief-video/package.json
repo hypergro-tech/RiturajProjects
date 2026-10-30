@@ -1,0 +1,12 @@
+{
+  "name": "brief-video",
+  "private": true,
+  "description": "BRIEF (formerly AURA) — 90-second silent explainer, rendered from HTML/SVG",
+  "scripts": {
+    "render": "node render.cjs",
+    "stills": "node render.cjs --still 2,9.5,19.5,26.5,34.5,48.5,61.5,76,82.5,88.5"
+  },
+  "devDependencies": {
+    "playwright": "^1.47.0"
+  }
+}

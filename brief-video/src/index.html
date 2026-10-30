@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BRIEF — 90s explainer</title>
+<link rel="stylesheet" href="fonts/fonts.css">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="stage"></div>
+<script src="engine.js"></script>
+<script src="scenes.js"></script>
+<script>
+  // Preview mode (open index.html directly): plays in real time. Space = pause, ←/→ = seek 2s.
+  // Render mode (?render): render.cjs drives BRIEF.renderAt(t) frame by frame.
+  if (!location.search.includes('render')) {
+    const stage = document.getElementById('stage');
+    const fit = () => {
+      const k = Math.min(innerWidth / 1920, innerHeight / 1080);
+      stage.style.transform = `translate(${(innerWidth - 1920 * k) / 2}px, ${(innerHeight - 1080 * k) / 2}px) scale(${k})`;
+    };
+    addEventListener('resize', fit); fit();
+    let t = 0, last = null, playing = true;
+    addEventListener('keydown', (e) => {
+      if (e.code === 'Space') playing = !playing;
+      if (e.code === 'ArrowRight') t = Math.min(BRIEF.DURATION, t + 2);
+      if (e.code === 'ArrowLeft') t = Math.max(0, t - 2);
+    });
+    BRIEF.ready.then(() => requestAnimationFrame(function loop(now) {
+      if (last != null && playing) t = (t + (now - last) / 1000) % BRIEF.DURATION;
+      last = now;
+      BRIEF.renderAt(t);
+      requestAnimationFrame(loop);
+    }));
+  }
+</script>
+</body>
+</html>

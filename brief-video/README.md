@@ -15,7 +15,7 @@ Hypergro 2026 deck. The focus is the four moats (deck pp. 30–33), with the fou
 | 40–52s | Moat 02 · Creative intelligence (p.31) |
 | 52–65s | Moat 03 · Self-improving engine (p.32) |
 | 65–79s | Moat 04 · Accumulated intelligence / switching cost (p.33) |
-| 79–90s | Proof (10M+ creatives, ₹500Cr+ revenue impact) → end card "Brief in. Growth out." |
+| 79–90s | Proof (10M+ creatives, ₹500Cr+ revenue impact) → end card "BRIEF — That’s all you need." |
 
 ## How it's made
 

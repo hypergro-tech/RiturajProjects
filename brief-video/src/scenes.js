@@ -693,7 +693,7 @@
     });
     const dot = mark.appendChild(h('span', { class: 'mark-dot', style: { width: '35px', height: '35px', marginLeft: '14px' } }));
     mark.style.transform = 'translateX(-24px)';
-    const tag = block(end, { center: true, y: 598, cls: 'end-tag', segs: [['Brief in.'], [' Growth out.', 'gold2']] });
+    const tag = block(end, { center: true, y: 598, cls: 'end-tag', segs: [['BRIEF —'], [' That’s all you need.', 'gold2']] });
     const desc = block(end, { center: true, y: 686, cls: 'end-desc', txt: 'The agentic execution layer for brand growth.' });
     const foot = block(end, { center: true, y: 952, cls: 'end-foot', style: { paddingLeft: '.32em' }, txt: 'by Hypergro.ai' });
 
@@ -710,7 +710,7 @@
 
       rise(letters, lt, 5.5, null, { stagger: 0.075, dur: 1.0 });
       dot.style.transform = `scale(${fx(Math.max(0, P(lt, 6.2, 0.5, E.outBack)))})`;
-      rise(tag.ws, lt, 6.6, null, { stagger: 0.09 });
+      rise(tag.ws, lt, 6.6, null, { stagger: 0.07 });
       const kd = P(lt, 7.3, 0.6);
       pose(desc.el, kd, 0, 10 * (1 - kd));
       pose(foot.el, P(lt, 7.7, 0.6));
